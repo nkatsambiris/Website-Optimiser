@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.0.0
+* Version: 1.0.1
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -906,7 +906,7 @@ function meta_description_boy_check_for_update($transient) {
         return $transient;
     }
 
-    $updater = new My_Plugin_Updater('1.0.0', 'https://raw.githubusercontent.com/nkatsambiris/website-optimiser/main/updates.json');
+    $updater = new My_Plugin_Updater('1.0.1', 'https://raw.githubusercontent.com/nkatsambiris/website-optimiser/main/updates.json');
     $update_data = $updater->check_for_update();
 
     if ($update_data) {
