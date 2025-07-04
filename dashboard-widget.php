@@ -26,10 +26,17 @@ require_once plugin_dir_path(__FILE__) . 'includes/hubspot.php';
 require_once plugin_dir_path(__FILE__) . 'includes/meta-pixel.php';
 require_once plugin_dir_path(__FILE__) . 'includes/updraftplus.php';
 require_once plugin_dir_path(__FILE__) . 'includes/custom-404-page.php';
+require_once plugin_dir_path(__FILE__) . 'includes/uptime-monitoring.php';
 require_once plugin_dir_path(__FILE__) . 'includes/favicon.php';
 require_once plugin_dir_path(__FILE__) . 'includes/wp-debug.php';
 require_once plugin_dir_path(__FILE__) . 'includes/caching-plugins.php';
 require_once plugin_dir_path(__FILE__) . 'includes/dynamic-copyright-year.php';
+require_once plugin_dir_path(__FILE__) . 'includes/woocommerce.php';
+require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-google-analytics.php';
+require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-emails.php';
+require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-payment-methods.php';
+require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-shipping-zones.php';
+require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-tax-settings.php';
 
 /**
  * Add admin menu page for SEO optimization
@@ -149,10 +156,21 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_meta_pixel_section();
         meta_description_boy_render_updraftplus_section();
         meta_description_boy_render_custom_404_section();
+        meta_description_boy_render_uptime_monitoring_section();
         meta_description_boy_render_favicon_section();
         meta_description_boy_render_wp_debug_section();
         meta_description_boy_render_caching_plugins_section();
         website_optimiser_render_dynamic_copyright_section();
+
+        // Conditionally render WooCommerce sections if WooCommerce is active
+        if (class_exists('WooCommerce')) {
+            website_optimiser_render_woocommerce_section();
+            website_optimiser_render_woocommerce_ga_section();
+            website_optimiser_render_woocommerce_emails_section();
+            website_optimiser_render_woocommerce_payment_methods_section();
+            website_optimiser_render_woocommerce_shipping_zones_section();
+            website_optimiser_render_woocommerce_tax_settings_section();
+        }
         ?>
     </div>
 
@@ -231,6 +249,9 @@ function meta_description_boy_get_seo_summary() {
     if (function_exists('meta_description_boy_check_custom_404_status')) {
         $statuses[] = meta_description_boy_check_custom_404_status();
     }
+    if (function_exists('meta_description_boy_check_uptime_monitoring_status')) {
+        $statuses[] = meta_description_boy_check_uptime_monitoring_status();
+    }
     if (function_exists('meta_description_boy_check_favicon_status')) {
         $statuses[] = meta_description_boy_check_favicon_status();
     }
@@ -242,6 +263,28 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('website_optimiser_check_dynamic_copyright_status')) {
         $statuses[] = website_optimiser_check_dynamic_copyright_status();
+    }
+
+    // Conditionally check WooCommerce statuses if WooCommerce is active
+    if (class_exists('WooCommerce')) {
+        if (function_exists('website_optimiser_check_woocommerce_status')) {
+            $statuses[] = website_optimiser_check_woocommerce_status();
+        }
+        if (function_exists('website_optimiser_check_woocommerce_ga_status')) {
+            $statuses[] = website_optimiser_check_woocommerce_ga_status();
+        }
+        if (function_exists('website_optimiser_check_woocommerce_emails_status')) {
+            $statuses[] = website_optimiser_check_woocommerce_emails_status();
+        }
+        if (function_exists('website_optimiser_check_woocommerce_payment_methods_status')) {
+            $statuses[] = website_optimiser_check_woocommerce_payment_methods_status();
+        }
+        if (function_exists('website_optimiser_check_woocommerce_shipping_zones_status')) {
+            $statuses[] = website_optimiser_check_woocommerce_shipping_zones_status();
+        }
+        if (function_exists('website_optimiser_check_woocommerce_tax_settings_status')) {
+            $statuses[] = website_optimiser_check_woocommerce_tax_settings_status();
+        }
     }
 
             foreach ($statuses as $status) {

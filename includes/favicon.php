@@ -98,11 +98,6 @@ function meta_description_boy_render_favicon_section() {
                     <a href="<?php echo admin_url('options-general.php#site_icon'); ?>" class="button button-primary button-small">
                         Add Favicon
                     </a>
-                    <br><br>
-                    <div style="background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffb900; font-size: 12px;">
-                        <strong>Tip:</strong> Upload a square image (512x512px recommended) in PNG, JPG, or ICO format.
-                        WordPress will automatically generate the appropriate sizes.
-                    </div>
                 <?php endif; ?>
             </div>
         </div>

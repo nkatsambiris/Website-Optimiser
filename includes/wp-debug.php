@@ -107,18 +107,6 @@ function meta_description_boy_render_wp_debug_section() {
             </div>
             <div class="stat-action">
                 <?php if (!$debug_status['debug_disabled']): ?>
-                    <div style="background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffb900; font-size: 12px; margin-bottom: 10px;">
-                        <strong>To disable debug mode:</strong><br>
-                        Edit your <code>wp-config.php</code> file and set:<br>
-                        <code style="background: #f1f1f1; padding: 2px 4px; border-radius: 2px;">define('WP_DEBUG', false);</code><br>
-                        <code style="background: #f1f1f1; padding: 2px 4px; border-radius: 2px;">define('WP_DEBUG_LOG', false);</code><br>
-                        <code style="background: #f1f1f1; padding: 2px 4px; border-radius: 2px;">define('WP_DEBUG_DISPLAY', false);</code>
-                    </div>
-                    <?php if (current_user_can('edit_files')): ?>
-                        <a href="<?php echo admin_url('theme-editor.php'); ?>" class="button button-small">
-                            Edit wp-config.php
-                        </a>
-                    <?php endif; ?>
                     <a href="https://wordpress.org/support/article/debugging-in-wordpress/" class="button button-small" target="_blank" style="margin-left: 5px;">
                         Debug Documentation
                     </a>
