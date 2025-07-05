@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.0.4
+* Version: 1.0.5
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -38,8 +38,55 @@ function meta_description_boy_activate() {
     add_option('meta_description_boy_api_key', '');
     add_option('meta_description_boy_post_types', array('post', 'page'));
     add_option('meta_description_boy_auto_alt_text', 1); // Enable by default
+
+    // Clear update caches to ensure updater works properly
+    meta_description_boy_clear_update_cache();
 }
 register_activation_hook(__FILE__, 'meta_description_boy_activate');
+
+// Clear update caches
+function meta_description_boy_clear_update_cache() {
+    delete_site_transient('update_plugins');
+    delete_transient('update_plugins');
+    wp_clean_plugins_cache();
+}
+
+// Force update check (for testing)
+function meta_description_boy_force_update_check() {
+    // Clear caches first
+    meta_description_boy_clear_update_cache();
+
+    // Force WordPress to check for updates
+    wp_update_plugins();
+
+    // Check if update is available
+    $updates = get_site_transient('update_plugins');
+    $plugin_basename = plugin_basename(__FILE__);
+
+    if (isset($updates->response[$plugin_basename])) {
+        return 'Update available: ' . $updates->response[$plugin_basename]->new_version;
+    } else {
+        return 'No update available';
+    }
+}
+
+// Add update check to admin if debug is enabled
+function meta_description_boy_admin_notices() {
+    $debug_enabled = get_option('meta_description_boy_debug_enabled');
+
+    if ($debug_enabled && isset($_GET['force_update_check']) && $_GET['force_update_check'] === '1') {
+        $result = meta_description_boy_force_update_check();
+        echo '<div class="notice notice-info"><p><strong>Website Optimiser:</strong> ' . esc_html($result) . '</p></div>';
+    }
+
+    if ($debug_enabled && current_user_can('manage_options')) {
+        $current_screen = get_current_screen();
+        if ($current_screen && strpos($current_screen->id, 'meta-description-boy') !== false) {
+            echo '<div class="notice notice-info"><p><strong>Debug Mode:</strong> <a href="' . admin_url('admin.php?page=meta-description-boy&force_update_check=1') . '">Force Update Check</a></p></div>';
+        }
+    }
+}
+add_action('admin_notices', 'meta_description_boy_admin_notices');
 
 // Remove options when the plugin is uninstalled
 function meta_description_boy_uninstall() {
@@ -882,21 +929,47 @@ class My_Plugin_Updater {
 
     private $current_version;
     private $api_url;
+    private $plugin_basename;
 
-    public function __construct($current_version, $api_url) {
+    public function __construct($current_version, $api_url, $plugin_basename) {
         $this->current_version = $current_version;
         $this->api_url = $api_url;
+        $this->plugin_basename = $plugin_basename;
     }
 
     public function check_for_update() {
+        $debug_enabled = get_option('meta_description_boy_debug_enabled');
+
+        if ($debug_enabled) {
+            error_log('Website Optimiser Updater: Making API call to: ' . $this->api_url);
+        }
+
         $response = wp_remote_get($this->api_url);
         if (is_wp_error($response)) {
+            if ($debug_enabled) {
+                error_log('Website Optimiser Updater: API call failed: ' . $response->get_error_message());
+            }
             return false;
         }
-        $data = json_decode(wp_remote_retrieve_body($response), true);
-        if ($data['version'] && version_compare($data['version'], $this->current_version, '>')) {
+
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+
+        if ($debug_enabled) {
+            error_log('Website Optimiser Updater: API response: ' . $body);
+        }
+
+        if ($data && isset($data['version']) && version_compare($data['version'], $this->current_version, '>')) {
+            if ($debug_enabled) {
+                error_log('Website Optimiser Updater: Version comparison - Remote: ' . $data['version'] . ' vs Local: ' . $this->current_version);
+            }
             return $data;
         }
+
+        if ($debug_enabled) {
+            error_log('Website Optimiser Updater: No update needed or invalid response data');
+        }
+
         return false;
     }
 }
@@ -906,36 +979,74 @@ function meta_description_boy_check_for_update($transient) {
         return $transient;
     }
 
-    $updater = new My_Plugin_Updater('1.0.4', 'https://raw.githubusercontent.com/nkatsambiris/website-optimiser/main/updates.json');
+    // Get the plugin basename correctly
+    $plugin_basename = plugin_basename(__FILE__);
+
+    // Check if this plugin is in the checked list
+    if (!isset($transient->checked[$plugin_basename])) {
+        return $transient;
+    }
+
+    // Get current version from plugin header
+    $plugin_data = get_plugin_data(__FILE__);
+    $current_version = $plugin_data['Version'];
+
+    // Debug logging if enabled
+    $debug_enabled = get_option('meta_description_boy_debug_enabled');
+    if ($debug_enabled) {
+        error_log('Website Optimiser Updater: Checking for updates. Current version: ' . $current_version);
+        error_log('Website Optimiser Updater: Plugin basename: ' . $plugin_basename);
+    }
+
+    $updater = new My_Plugin_Updater($current_version, 'https://raw.githubusercontent.com/nkatsambiris/website-optimiser/main/updates.json', $plugin_basename);
     $update_data = $updater->check_for_update();
 
     if ($update_data) {
-        $transient->response['website-optimiser/index.php'] = (object) array(
+        if ($debug_enabled) {
+            error_log('Website Optimiser Updater: Update available. New version: ' . $update_data['version']);
+        }
+
+        $transient->response[$plugin_basename] = (object) array(
+            'slug' => dirname($plugin_basename),
+            'plugin' => $plugin_basename,
             'new_version' => $update_data['version'],
-            'package'     => $update_data['download_url'],
-            'slug'        => 'website-optimiser',
-            'plugin'      => 'website-optimiser/index.php',  // This line ensures WordPress knows which plugin is being updated
+            'url' => isset($update_data['details_url']) ? $update_data['details_url'] : '',
+            'package' => $update_data['download_url'],
+            'icons' => array(),
+            'banners' => array(),
+            'tested' => isset($update_data['tested']) ? $update_data['tested'] : '',
+            'requires_php' => isset($update_data['requires_php']) ? $update_data['requires_php'] : '',
+            'compatibility' => new stdClass(),
         );
+    } else {
+        if ($debug_enabled) {
+            error_log('Website Optimiser Updater: No update available or error checking for updates');
+        }
     }
 
     return $transient;
 }
 add_filter('pre_set_site_transient_update_plugins', 'meta_description_boy_check_for_update');
 
-// Displayed in the pligin info window
+// Displayed in the plugin info window
 function meta_description_boy_plugin_info($false, $action, $args) {
-    if (isset($args->slug) && $args->slug === 'website-optimiser') {
+    $plugin_basename = plugin_basename(__FILE__);
+    $plugin_slug = dirname($plugin_basename);
+
+    if (isset($args->slug) && $args->slug === $plugin_slug) {
         $response = wp_remote_get('https://raw.githubusercontent.com/nkatsambiris/website-optimiser/main/plugin-info.json');
         if (!is_wp_error($response)) {
             $plugin_info = json_decode(wp_remote_retrieve_body($response));
             if ($plugin_info) {
                 return (object) array(
-                    'slug' => $args->slug,
+                    'slug' => $plugin_slug,
                     'name' => $plugin_info->name,
                     'version' => $plugin_info->version,
                     'author' => $plugin_info->author,
+                    'homepage' => isset($plugin_info->homepage) ? $plugin_info->homepage : '',
                     'requires' => $plugin_info->requires,
                     'tested' => $plugin_info->tested,
+                    'requires_php' => isset($plugin_info->requires_php) ? $plugin_info->requires_php : '',
                     'last_updated' => $plugin_info->last_updated,
                     'sections' => array(
                         'description' => $plugin_info->sections->description,
@@ -946,6 +1057,7 @@ function meta_description_boy_plugin_info($false, $action, $args) {
                         'low' => 'https://raw.githubusercontent.com/nkatsambiris/website-optimiser/main/banner-772x250.jpg',
                         'high' => 'https://raw.githubusercontent.com/nkatsambiris/website-optimiser/main/banner-1544x500.jpg'
                     ),
+                    'icons' => array(),
                 );
             }
         }
@@ -954,10 +1066,13 @@ function meta_description_boy_plugin_info($false, $action, $args) {
 }
 add_filter('plugins_api', 'meta_description_boy_plugin_info', 10, 3);
 
-// Used to rename the zip folder on plugin update success
+// Used to handle the plugin folder name during updates
 function meta_description_boy_upgrader_package_options($options) {
-    if (isset($options['hook_extra']['plugin']) && $options['hook_extra']['plugin'] === 'meta-description-boy/index.php') {
-        $options['destination'] = WP_PLUGIN_DIR . '/meta-description-boy';
+    $plugin_basename = plugin_basename(__FILE__);
+
+    if (isset($options['hook_extra']['plugin']) && $options['hook_extra']['plugin'] === $plugin_basename) {
+        $plugin_slug = dirname($plugin_basename);
+        $options['destination'] = WP_PLUGIN_DIR . '/' . $plugin_slug;
         $options['clear_destination'] = true; // Overwrite the files
     }
     return $options;

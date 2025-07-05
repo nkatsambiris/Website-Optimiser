@@ -131,7 +131,7 @@ function meta_description_boy_admin_query_filter($query) {
 /**
  * Add admin notices for filtered views
  */
-function meta_description_boy_admin_notices() {
+function meta_description_boy_filtered_view_notices() {
     if (get_query_var('meta_desc_missing')) {
         echo '<div class="notice notice-info"><p><strong>Showing posts/pages missing meta descriptions.</strong> <a href="' . admin_url('edit.php') . '">View all posts</a></p></div>';
     }
