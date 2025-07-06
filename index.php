@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.0.5
+* Version: 1.0.6
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -97,6 +97,10 @@ function meta_description_boy_uninstall() {
     delete_option('meta_description_boy_debug_enabled');
     delete_option('meta_description_boy_auto_alt_text');
     delete_option('meta_description_boy_auto_generated_alt_text');
+    // Clean up ManageWP options
+    delete_option('meta_description_boy_no_managewp_approved');
+    delete_option('meta_description_boy_no_managewp_approved_by');
+    delete_option('meta_description_boy_no_managewp_approved_date');
     // Clean up old OpenAI options if they exist
     delete_option('meta_description_boy_selected_model');
     delete_option('meta_description_boy_prompt_text');

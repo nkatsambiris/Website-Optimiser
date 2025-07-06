@@ -24,6 +24,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-confirmations.p
 require_once plugin_dir_path(__FILE__) . 'includes/redirects.php';
 require_once plugin_dir_path(__FILE__) . 'includes/hubspot.php';
 require_once plugin_dir_path(__FILE__) . 'includes/meta-pixel.php';
+require_once plugin_dir_path(__FILE__) . 'includes/managewp.php';
 require_once plugin_dir_path(__FILE__) . 'includes/updraftplus.php';
 require_once plugin_dir_path(__FILE__) . 'includes/custom-404-page.php';
 require_once plugin_dir_path(__FILE__) . 'includes/uptime-monitoring.php';
@@ -154,6 +155,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_redirects_section();
         meta_description_boy_render_hubspot_section();
         meta_description_boy_render_meta_pixel_section();
+        meta_description_boy_render_managewp_section();
         meta_description_boy_render_updraftplus_section();
         meta_description_boy_render_custom_404_section();
         meta_description_boy_render_uptime_monitoring_section();
@@ -242,6 +244,9 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('meta_description_boy_check_meta_pixel_status')) {
         $statuses[] = meta_description_boy_check_meta_pixel_status();
+    }
+    if (function_exists('meta_description_boy_check_managewp_status')) {
+        $statuses[] = meta_description_boy_check_managewp_status();
     }
     if (function_exists('meta_description_boy_check_updraftplus_status')) {
         $statuses[] = meta_description_boy_check_updraftplus_status();
