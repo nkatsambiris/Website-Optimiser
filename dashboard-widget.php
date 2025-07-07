@@ -38,6 +38,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-emails.php';
 require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-payment-methods.php';
 require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-shipping-zones.php';
 require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-tax-settings.php';
+require_once plugin_dir_path(__FILE__) . 'includes/media-videos.php';
 
 /**
  * Add admin menu page for SEO optimization
@@ -163,6 +164,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_wp_debug_section();
         meta_description_boy_render_caching_plugins_section();
         website_optimiser_render_dynamic_copyright_section();
+        meta_description_boy_render_media_videos_section();
 
         // Conditionally render WooCommerce sections if WooCommerce is active
         if (class_exists('WooCommerce')) {
@@ -268,6 +270,9 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('website_optimiser_check_dynamic_copyright_status')) {
         $statuses[] = website_optimiser_check_dynamic_copyright_status();
+    }
+    if (function_exists('meta_description_boy_check_media_videos_status')) {
+        $statuses[] = meta_description_boy_check_media_videos_status();
     }
 
     // Conditionally check WooCommerce statuses if WooCommerce is active
