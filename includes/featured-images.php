@@ -110,7 +110,7 @@ function meta_description_boy_render_featured_images_section() {
     }
     ?>
     <div class="seo-stat-item <?php echo $status_class; ?>">
-        <div class="stat-icon">🖼️</div>
+        <div class="stat-icon">🌟</div>
         <div class="stat-content">
             <h4>Featured Images</h4>
             <div class="stat-status <?php echo $status_class; ?>">

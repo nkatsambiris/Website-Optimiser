@@ -230,91 +230,92 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
                 <?php endif; ?>
             </div>
 
-            <?php if (!empty($forms_data)): ?>
-            <div class="conversion-events-list" style="margin-top: 15px;">
-                <div class="conversion-events-toggle" style="text-align: center;">
-                    <button type="button" class="button button-small" onclick="toggleConversionEventsList()">
-                        <span id="toggle-text">Show Forms</span> (<?php echo count($forms_data); ?>)
-                    </button>
-                </div>
+            <div class="stat-action">
 
-                <div id="conversion-events-forms" style="display: none; margin-top: 10px; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
-                    <?php foreach ($forms_data as $form): ?>
-                    <div class="conversion-event-form" style="padding: 12px; border-bottom: 1px solid #eee; background: #f9f9f9;" data-form-id="<?php echo $form['id']; ?>">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                            <strong style="flex: 1;"><?php echo esc_html($form['title']); ?></strong>
-                            <span class="status-indicator status-<?php echo $form['status']; ?>" style="
-                                padding: 2px 8px;
-                                border-radius: 12px;
-                                font-size: 11px;
-                                font-weight: bold;
-                                text-transform: uppercase;
-                                <?php
-                                switch ($form['status']) {
-                                    case 'added':
-                                        echo 'background: #d4edda; color: #155724;';
-                                        break;
-                                    case 'not_required':
-                                        echo 'background: #d1ecf1; color: #0c5460;';
-                                        break;
-                                    default:
-                                        echo 'background: #fff3cd; color: #856404;';
-                                        break;
-                                }
-                                ?>
-                            ">
-                                <?php
-                                switch ($form['status']) {
-                                    case 'added':
-                                        echo 'Added';
-                                        break;
-                                    case 'not_required':
-                                        echo 'Not Required';
-                                        break;
-                                    default:
-                                        echo 'Pending';
-                                        break;
-                                }
-                                ?>
-                            </span>
+                <?php if (!empty($forms_data)): ?>
+                    <div class="conversion-events-list" style="margin-top: 15px;">
+                        <div class="conversion-events-toggle" style="text-align: center;">
+                            <button type="button" class="button button-small" onclick="toggleConversionEventsList()">
+                                <span id="toggle-text">Show Forms</span> (<?php echo count($forms_data); ?>)
+                            </button>
                         </div>
 
-                        <?php if ($form['status'] === 'added' && !empty($form['created_by'])): ?>
-                            <small style="color: #666; display: block; margin-bottom: 8px;">
-                                Added by: <strong><?php echo esc_html($form['created_by']); ?></strong>
-                                <?php if (!empty($form['created_date'])): ?>
-                                    on <?php echo date('M j, Y', strtotime($form['created_date'])); ?>
+                        <div id="conversion-events-forms" style="display: none; margin-top: 10px; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+                            <?php foreach ($forms_data as $form): ?>
+                            <div class="conversion-event-form" style="padding: 12px; border-bottom: 1px solid #eee; background: #f9f9f9;" data-form-id="<?php echo $form['id']; ?>">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                    <strong style="flex: 1;"><?php echo esc_html($form['title']); ?></strong>
+                                    <span class="status-indicator status-<?php echo $form['status']; ?>" style="
+                                        padding: 2px 8px;
+                                        border-radius: 12px;
+                                        font-size: 11px;
+                                        font-weight: bold;
+                                        text-transform: uppercase;
+                                        <?php
+                                        switch ($form['status']) {
+                                            case 'added':
+                                                echo 'background: #d4edda; color: #155724;';
+                                                break;
+                                            case 'not_required':
+                                                echo 'background: #d1ecf1; color: #0c5460;';
+                                                break;
+                                            default:
+                                                echo 'background: #fff3cd; color: #856404;';
+                                                break;
+                                        }
+                                        ?>
+                                    ">
+                                        <?php
+                                        switch ($form['status']) {
+                                            case 'added':
+                                                echo 'Added';
+                                                break;
+                                            case 'not_required':
+                                                echo 'Not Required';
+                                                break;
+                                            default:
+                                                echo 'Pending';
+                                                break;
+                                        }
+                                        ?>
+                                    </span>
+                                </div>
+
+                                <?php if ($form['status'] === 'added' && !empty($form['created_by'])): ?>
+                                    <small style="color: #666; display: block; margin-bottom: 8px;">
+                                        Added by: <strong><?php echo esc_html($form['created_by']); ?></strong>
+                                        <?php if (!empty($form['created_date'])): ?>
+                                            on <?php echo date('M j, Y', strtotime($form['created_date'])); ?>
+                                        <?php endif; ?>
+                                    </small>
                                 <?php endif; ?>
-                            </small>
-                        <?php endif; ?>
 
-                        <?php if (!empty($form['notes'])): ?>
-                            <div style="background: #fff; padding: 8px; border-radius: 3px; margin-bottom: 8px;">
-                                <small><strong>Notes:</strong> <?php echo esc_html($form['notes']); ?></small>
+                                <?php if (!empty($form['notes'])): ?>
+                                    <div style="background: #fff; padding: 8px; border-radius: 3px; margin-bottom: 8px;">
+                                        <small><strong>Notes:</strong> <?php echo esc_html($form['notes']); ?></small>
+                                    </div>
+                                <?php endif; ?>
+
+                                <div class="conversion-event-actions">
+                                    <?php if ($form['status'] === 'pending'): ?>
+                                        <button type="button" class="button button-small" onclick="showConversionEventForm(<?php echo $form['id']; ?>)">
+                                            Configure
+                                        </button>
+                                    <?php else: ?>
+                                        <button type="button" class="button button-small" onclick="showConversionEventForm(<?php echo $form['id']; ?>)">
+                                            Edit
+                                        </button>
+                                        <button type="button" class="button button-small" onclick="resetConversionEventStatus(<?php echo $form['id']; ?>)" style="margin-left: 5px;">
+                                            Reset
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
                             </div>
-                        <?php endif; ?>
-
-                        <div class="conversion-event-actions">
-                            <?php if ($form['status'] === 'pending'): ?>
-                                <button type="button" class="button button-small" onclick="showConversionEventForm(<?php echo $form['id']; ?>)">
-                                    Configure
-                                </button>
-                            <?php else: ?>
-                                <button type="button" class="button button-small" onclick="showConversionEventForm(<?php echo $form['id']; ?>)">
-                                    Edit
-                                </button>
-                                <button type="button" class="button button-small" onclick="resetConversionEventStatus(<?php echo $form['id']; ?>)" style="margin-left: 5px;">
-                                    Reset
-                                </button>
-                            <?php endif; ?>
+                            <?php endforeach; ?>
                         </div>
                     </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php endif; ?>
+                    <?php endif; ?>
 
-            <div class="stat-action">
                 <?php if (!$conversion_status['gf_installed']): ?>
                     <!-- Gravity Forms is not installed -->
                 <?php elseif (!$conversion_status['gf_active']): ?>

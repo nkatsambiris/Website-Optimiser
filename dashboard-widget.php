@@ -53,7 +53,7 @@ function meta_description_boy_add_optimisation_menu() {
             'manage_options',             // Capability
             'website-optimisation',           // Menu slug
             'meta_description_boy_optimisation_page', // Function
-            'dashicons-search',           // Icon
+            'dashicons-chart-area',           // Icon
             100                          // Position
         );
     }
@@ -66,7 +66,13 @@ add_action('admin_menu', 'meta_description_boy_add_optimisation_menu');
 function meta_description_boy_optimisation_page() {
     ?>
     <div class="optimisation-page-header">
-        <h1><span class="dashicons dashicons-search" style="margin-right: 10px;"></span>Website Optimisation</h1>
+        <h1>
+            <span class="dashicons dashicons-chart-area" style="margin-right: 10px;"></span>
+            Website Optimisation
+            <button type="button" id="compact-mode-toggle" class="compact-toggle-btn" title="Toggle Compact Mode">
+                <span class="dashicons dashicons-list-view"></span>
+            </button>
+        </h1>
     </div>
     <div class="wrap">
         <div id="meta-description-boy-optimisation-page">
@@ -186,6 +192,27 @@ function meta_description_boy_optimisation_page() {
     </div>
         </div>
     </div>
+
+    <script>
+    jQuery(document).ready(function($) {
+        // Initialize compact mode from localStorage
+        if (localStorage.getItem('optimisation-compact-mode') === 'true') {
+            $('body').addClass('compact-mode');
+        }
+
+        // Toggle compact mode
+        $('#compact-mode-toggle').on('click', function() {
+            $('body').toggleClass('compact-mode');
+
+            // Save preference to localStorage
+            const isCompact = $('body').hasClass('compact-mode');
+            localStorage.setItem('optimisation-compact-mode', isCompact);
+
+            // Update button title
+            $(this).attr('title', isCompact ? 'Exit Compact Mode' : 'Toggle Compact Mode');
+        });
+    });
+    </script>
     <?php
 }
 
@@ -400,7 +427,7 @@ function meta_description_boy_add_dashboard_widget() {
 
     wp_add_dashboard_widget(
         'meta_description_boy_seo_overview',
-        '🔍 SEO Optimisation Overview',
+        'Website Optimisation',
         'meta_description_boy_dashboard_widget_content'
     );
 }

@@ -388,3 +388,43 @@ button#generate-alt-text-btn {
         padding: 10px;
     }
 }
+
+.compact-mode #meta-description-boy-optimisation-page {
+    .stat-label, .stat-action, .stat-number {
+        display: none;
+    }
+    .seo-stat-item {
+        padding: 10px;
+    }
+}
+
+.optimisation-page-header h1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.compact-toggle-btn {
+    background: none;
+    border: 0 solid #ddd;
+    cursor: pointer;
+    color: #646970;
+    transition: all 0.2s ease;
+    margin-left: auto;
+    margin-right: 10px;
+}
+
+.compact-toggle-btn:hover {
+    background-color: #f6f7f7;
+    border-color: #0073aa;
+    color: #0073aa;
+}
+
+.compact-toggle-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 0px #0073aa;
+}
+
+body.compact-mode .compact-toggle-btn .dashicons-list-view:before {
+    content: "\f164"; /* dashicons-grid-view */
+}
