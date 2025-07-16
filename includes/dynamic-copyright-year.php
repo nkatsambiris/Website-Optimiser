@@ -14,10 +14,10 @@ function website_optimiser_check_dynamic_copyright_status() {
         require_once(ABSPATH . 'wp-admin/includes/plugin.php');
     }
 
-    $dynamic_year_plugin = 'dynamic-year-block/dynamic-year-block.php';
+    $dynamic_year_plugin = 'current-year-shortcode/year-kgm.php';
 
     $plugin_active = is_plugin_active($dynamic_year_plugin);
-    $plugin_name = 'Dynamic Year Block';
+    $plugin_name = 'Current Year, Symbols and IP Shortcode';
     $plugin_version = '';
 
     if ($plugin_active) {
@@ -52,7 +52,7 @@ function website_optimiser_check_dynamic_copyright_status() {
             'approved_by' => '',
             'approved_date' => '',
             'status' => 'Plugin Active, Not Confirmed',
-            'message' => 'Dynamic Year Block plugin is active. Please confirm it is in use.',
+            'message' => 'Current Year, Symbols and IP Shortcode plugin is active. Please confirm it is in use.',
             'class' => 'status-warning'
         );
     } else {
@@ -64,7 +64,7 @@ function website_optimiser_check_dynamic_copyright_status() {
             'approved_by' => '',
             'approved_date' => '',
             'status' => 'Not Enabled',
-            'message' => 'Consider installing Dynamic Year Block for automatic copyright year updates.',
+            'message' => 'Consider installing Current Year, Symbols and IP Shortcode for automatic copyright year updates.',
             'class' => 'status-warning'
         );
     }
@@ -140,8 +140,8 @@ function website_optimiser_render_dynamic_copyright_section() {
                     </button>
                 <?php else: ?>
                     <?php if (!$copyright_status['plugin_active']): ?>
-                        <a href="<?php echo admin_url('plugin-install.php?s=dynamic-year-block&tab=search&type=term'); ?>" class="button button-small">
-                            Install Dynamic Year Block
+                        <a href="<?php echo admin_url('plugin-install.php?s=current-year-shortcode&tab=search&type=term'); ?>" class="button button-small">
+                            Install Current Year Shortcode
                         </a>
                         <br><br>
                     <?php endif; ?>
