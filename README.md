@@ -15,6 +15,9 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 1.0.8 Changes
+- Resolve issue with generating meta description on single edit screen. *Thanks to @ben.grave for identifying this issue
+
 ## Version 1.0.7 Changes
 - Flags if videos are added to media library
 

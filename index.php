@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.0.7
+* Version: 1.0.8
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -152,10 +152,18 @@ function meta_description_boy_options_page() {
 
 // Register custom metabox
 function meta_description_boy_add_meta_box() {
+    $debug_enabled = get_option('meta_description_boy_debug_enabled');
+
+    if ($debug_enabled) {
+        error_log('Meta Description Boy: add_meta_boxes action triggered');
+    }
 
     // Check if the Gemini API key is set
     $api_key = get_option('meta_description_boy_api_key');
     if (empty($api_key)) {
+        if ($debug_enabled) {
+            error_log('Meta Description Boy: API key not set, meta box not added');
+        }
         // API key not set, so return early and do not add the meta box
         return;
     }
@@ -163,12 +171,27 @@ function meta_description_boy_add_meta_box() {
     // Check if the user has access
     $user = wp_get_current_user();
     $allowed_roles = get_option('meta_description_boy_allowed_roles', array('administrator'));
+    if ($debug_enabled) {
+        error_log('Meta Description Boy: User roles: ' . implode(', ', $user->roles));
+        error_log('Meta Description Boy: Allowed roles: ' . implode(', ', $allowed_roles));
+    }
+
     if (!array_intersect($allowed_roles, $user->roles)) {
+        if ($debug_enabled) {
+            error_log('Meta Description Boy: User does not have required role, meta box not added');
+        }
         return;
     }
 
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page')); // Default to post and page if the option is not set.
+    if ($debug_enabled) {
+        error_log('Meta Description Boy: Selected post types: ' . implode(', ', $selected_post_types));
+    }
+
     foreach ($selected_post_types as $post_type) {
+        if ($debug_enabled) {
+            error_log('Meta Description Boy: Adding meta box for post type: ' . $post_type);
+        }
         add_meta_box(
             'meta_description_boy_meta_box', // Unique ID
             'Meta Description', // Title of the box
@@ -191,6 +214,38 @@ function meta_description_boy_add_meta_box() {
 }
 
 add_action('add_meta_boxes', 'meta_description_boy_add_meta_box');
+
+// Temporary diagnostic function - remove this later
+function meta_description_boy_diagnostic_admin_notice() {
+    $debug_enabled = get_option('meta_description_boy_debug_enabled');
+    if (!$debug_enabled) {
+        return;
+    }
+
+    $screen = get_current_screen();
+    if ($screen && ($screen->post_type == 'post' || $screen->post_type == 'page') && $screen->base == 'post') {
+        $api_key = get_option('meta_description_boy_api_key');
+        $user = wp_get_current_user();
+        $allowed_roles = get_option('meta_description_boy_allowed_roles', array('administrator'));
+        $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
+
+        echo '<div class="notice notice-info">';
+        echo '<h3>Website Optimiser Debug Info:</h3>';
+        echo '<p><strong>API Key Set:</strong> ' . (!empty($api_key) ? 'Yes' : 'No') . '</p>';
+        echo '<p><strong>User Roles:</strong> ' . implode(', ', $user->roles) . '</p>';
+        echo '<p><strong>Allowed Roles:</strong> ' . implode(', ', $allowed_roles) . '</p>';
+        echo '<p><strong>Selected Post Types:</strong> ' . implode(', ', $selected_post_types) . '</p>';
+        echo '<p><strong>Current Post Type:</strong> ' . $screen->post_type . '</p>';
+        echo '<p><strong>Meta Box Should Show:</strong> ' . (
+            !empty($api_key) &&
+            array_intersect($allowed_roles, $user->roles) &&
+            in_array($screen->post_type, $selected_post_types)
+            ? 'Yes' : 'No'
+        ) . '</p>';
+        echo '</div>';
+    }
+}
+add_action('admin_notices', 'meta_description_boy_diagnostic_admin_notice');
 
 // This function will generate the content displayed inside the meta box:
 function meta_description_boy_meta_box_callback($post) {
@@ -342,7 +397,15 @@ function meta_description_boy_post_types_field_cb() {
 }
 
 function meta_description_boy_enqueue_admin_scripts($hook) {
-    global $post;
+    global $post, $pagenow;
+
+    // Debug logging
+    $debug_enabled = get_option('meta_description_boy_debug_enabled');
+    if ($debug_enabled) {
+        error_log('Meta Description Boy: Enqueue script hook: ' . $hook);
+        error_log('Meta Description Boy: Current pagenow: ' . $pagenow);
+        error_log('Meta Description Boy: Post type: ' . (isset($post) ? $post->post_type : 'no post'));
+    }
 
     // Load on post edit pages, upload page, attachment edit pages, and optimization page
     $should_load = (
@@ -352,31 +415,70 @@ function meta_description_boy_enqueue_admin_scripts($hook) {
         ('toplevel_page_website-optimisation' == $hook)
     );
 
+    if ($debug_enabled) {
+        error_log('Meta Description Boy: Should load scripts: ' . ($should_load ? 'YES' : 'NO'));
+    }
+
     if ($should_load) {
-        wp_enqueue_script('meta_description_boy_admin_js', plugin_dir_url(__FILE__) . 'admin.js', array('jquery'), '1.5', true);
+        wp_enqueue_script('meta_description_boy_admin_js', plugin_dir_url(__FILE__) . 'admin.js', array('jquery'), '2.0', true);
         wp_enqueue_style('meta-description-boy-admin-styles', plugin_dir_url(__FILE__) . 'admin.css');
 
         // Also enqueue media scripts for modal functionality
         wp_enqueue_media();
 
+        // Get post ID more reliably
+        $post_id = 0;
+        if (isset($post) && $post->ID) {
+            $post_id = $post->ID;
+        } elseif (isset($_GET['post'])) {
+            $post_id = intval($_GET['post']);
+        } elseif (isset($_POST['post_ID'])) {
+            $post_id = intval($_POST['post_ID']);
+        }
+
         // Localize the script with server-side data
         $meta_description_boy_data = array(
             'ajax_url' => admin_url('admin-ajax.php'),
-            'post_id' => get_the_ID(),
-            'nonce' => wp_create_nonce('meta_description_boy_nonce')
+            'post_id' => $post_id,
+            'nonce' => wp_create_nonce('meta_description_boy_nonce'),
+            'debug' => get_option('meta_description_boy_debug_enabled', false)
         );
         wp_localize_script('meta_description_boy_admin_js', 'meta_description_boy_data', $meta_description_boy_data);
+
+        if ($debug_enabled) {
+            error_log('Meta Description Boy: Scripts enqueued successfully for post ID: ' . $post_id);
+        }
     }
 }
 add_action('admin_enqueue_scripts', 'meta_description_boy_enqueue_admin_scripts');
 
 function meta_description_boy_handle_ajax_request() {
+    // Debug logging if enabled
+    $debug_enabled = get_option('meta_description_boy_debug_enabled');
+    if ($debug_enabled) {
+        error_log('Meta Description Boy: AJAX request received. POST data: ' . print_r($_POST, true));
+    }
+
     // Verify nonce
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'meta_description_boy_nonce')) {
+        if ($debug_enabled) {
+            error_log('Meta Description Boy: Nonce verification failed');
+        }
         wp_send_json_error(array('message' => 'Invalid nonce'));
     }
 
     $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+
+    if ($debug_enabled) {
+        error_log('Meta Description Boy: Processing request for post ID: ' . $post_id);
+    }
+
+    if (!$post_id) {
+        if ($debug_enabled) {
+            error_log('Meta Description Boy: No post ID provided');
+        }
+        wp_send_json_error(array('message' => 'No post ID provided'));
+    }
 
     $title = get_the_title($post_id) . ' '; // Equivalent to get_name
 
@@ -397,6 +499,19 @@ function meta_description_boy_handle_ajax_request() {
 
     $api_key = get_option('meta_description_boy_api_key');
     $instruction_text = get_option('meta_description_boy_instruction_text', 'Write a 160 character or less SEO meta description based on the following content.');
+
+    if ($debug_enabled) {
+        error_log('Meta Description Boy: Content extracted - Title: ' . $title);
+        error_log('Meta Description Boy: Content length: ' . strlen($post_content));
+        error_log('Meta Description Boy: API key configured: ' . (!empty($api_key) ? 'Yes' : 'No'));
+    }
+
+    if (empty($api_key)) {
+        if ($debug_enabled) {
+            error_log('Meta Description Boy: API key not configured');
+        }
+        wp_send_json_error(array('message' => 'Google Gemini API key not configured. Please check plugin settings.'));
+    }
 
     // Create the prompt by combining instruction and content
     $full_prompt = $instruction_text . "\n\nContent: " . $post_content;

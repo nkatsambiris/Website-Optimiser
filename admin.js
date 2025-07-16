@@ -16,47 +16,59 @@ jQuery(document).ready(function($) {
         }
     }
 
-    // Function to generate alt text
+    // Function to generate alt text in media modal
     function generateAltText() {
         var $button = $('#generate-alt-text-btn');
-        var $altTextInput = $('.attachment-details .setting[data-setting="alt"] textarea, .attachment-details .setting[data-setting="alt"] input[type="text"]');
         var originalButtonText = $button.text();
 
-        // Get attachment ID from the modal
+        // Try multiple selectors for the alt text field
+        var $altTextInput = $('.setting[data-setting="alt"] input[type="text"]');
+        if (!$altTextInput.length) {
+            $altTextInput = $('.setting[data-setting="alt"] textarea');
+        }
+        if (!$altTextInput.length) {
+            $altTextInput = $('input[value=""][data-setting="alt"]');
+        }
+        if (!$altTextInput.length) {
+            $altTextInput = $('.attachment-details input[placeholder*="alt"], .attachment-details textarea[placeholder*="alt"]');
+        }
+        if (!$altTextInput.length) {
+            $altTextInput = $('.compat-field-alt_text input, .compat-field-alt_text textarea');
+        }
+
+        console.log('Alt text input field found:', $altTextInput.length > 0);
+        if ($altTextInput.length) {
+            console.log('Alt text input selector:', $altTextInput[0]);
+        }
+
+        // Try to get attachment ID from various sources
         var attachmentId = null;
 
-        // Try different methods to get attachment ID
-        if ($('.attachment-details').attr('data-id')) {
-            attachmentId = $('.attachment-details').attr('data-id');
-        } else if ($('.attachment-display-settings').length) {
-            var urlInput = $('.attachment-display-settings input[name="url"]');
-            if (urlInput.length) {
-                var url = urlInput.val();
-                var matches = url.match(/wp-content\/uploads\/.*\/(.*?)(\?|$)/);
-                if (matches) {
-                    // Try to get ID from global wp object if available
-                    if (typeof wp !== 'undefined' && wp.media && wp.media.frame && wp.media.frame.state().get('selection')) {
-                        var selection = wp.media.frame.state().get('selection').first();
-                        if (selection) {
-                            attachmentId = selection.get('id');
-                        }
-                    }
+        // Method 1: From media modal
+        if (typeof wp !== 'undefined' && wp.media && wp.media.frame && wp.media.frame.state) {
+            var selection = wp.media.frame.state().get('selection');
+            if (selection && selection.first) {
+                var model = selection.first();
+                if (model && model.get) {
+                    attachmentId = model.get('id');
                 }
             }
         }
 
-        // Fallback: try to get ID from URL parameters
+        // Method 2: From URL parameters
         if (!attachmentId) {
             var urlParams = new URLSearchParams(window.location.search);
             attachmentId = urlParams.get('item') || urlParams.get('attachment_id');
         }
 
-        // Additional fallback: check for data attributes on various elements
+        // Method 3: From data attributes
         if (!attachmentId) {
-            var dataElements = $('.attachment-details [data-id], .media-modal [data-id], .attachment [data-id]');
-            if (dataElements.length) {
-                attachmentId = dataElements.first().attr('data-id');
-            }
+            attachmentId = $button.data('attachment-id') || $('.attachment-details').data('attachment-id');
+        }
+
+        // Method 4: From hidden inputs
+        if (!attachmentId) {
+            attachmentId = $('input[name="attachment_id"]').val();
         }
 
         if (!attachmentId) {
@@ -83,8 +95,34 @@ jQuery(document).ready(function($) {
                 $button.prop('disabled', false);
 
                 if (response.success) {
-                    // Update the alt text field
-                    $altTextInput.val(response.data.alt_text).trigger('change');
+                    var altText = response.data.alt_text;
+                    console.log('Generated alt text:', altText);
+
+                    // Update the alt text field with multiple approaches
+                    if ($altTextInput.length) {
+                        $altTextInput.val(altText);
+                        $altTextInput.trigger('change');
+                        $altTextInput.trigger('input');
+                        $altTextInput.trigger('keyup');
+
+                        // Force save in WordPress media modal
+                        if (typeof wp !== 'undefined' && wp.media && wp.media.frame) {
+                            var selection = wp.media.frame.state().get('selection');
+                            if (selection && selection.first) {
+                                var model = selection.first();
+                                if (model && model.set) {
+                                    model.set('alt', altText);
+                                    console.log('Alt text set in media model');
+                                }
+                            }
+                        }
+
+                        console.log('Alt text field updated with:', altText);
+                    } else {
+                        console.log('Alt text field not found, attempting to save directly via AJAX');
+                        // If field not found, save directly via AJAX
+                        saveAltTextDirectly(attachmentId, altText);
+                    }
 
                     // Show success message
                     var successMsg = $('<div class="notice notice-success" style="margin: 10px 0;"><p>Alt text generated successfully!</p></div>');
@@ -104,20 +142,70 @@ jQuery(document).ready(function($) {
         });
     }
 
+    // Function to save alt text directly via AJAX when field update fails
+    function saveAltTextDirectly(attachmentId, altText) {
+        $.ajax({
+            type: 'POST',
+            url: meta_description_boy_data.ajax_url,
+            data: {
+                action: 'meta_description_boy_save_alt_text',
+                attachment_id: attachmentId,
+                alt_text: altText,
+                nonce: meta_description_boy_data.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    console.log('Alt text saved directly via AJAX');
+                } else {
+                    console.log('Failed to save alt text directly:', response.data.message);
+                }
+            },
+            error: function() {
+                console.log('Error saving alt text directly via AJAX');
+            }
+        });
+    }
+
     // Check for media modal periodically and add button if needed
     var checkInterval = setInterval(function() {
         addAltTextButton();
     }, 500);
 
-    // Also bind to media modal events if available
+        // Bind to WordPress media modal events if available
     if (typeof wp !== 'undefined' && wp.media) {
-        wp.media.view.Attachment.Details.on('ready', function() {
-            setTimeout(addAltTextButton, 100);
+        // Use MutationObserver to watch for media modal changes
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes) {
+                    for (var i = 0; i < mutation.addedNodes.length; i++) {
+                        var node = mutation.addedNodes[i];
+                        if (node.nodeType === 1) { // Element node
+                            if ($(node).hasClass('media-modal') || $(node).find('.media-modal').length) {
+                                setTimeout(addAltTextButton, 500);
+                            }
+                            if ($(node).hasClass('attachment-details') || $(node).find('.attachment-details').length) {
+                                setTimeout(addAltTextButton, 100);
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        // Start observing
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        // Also check when clicking on media buttons
+        $(document).on('click', '.media-button, .media-menu-item', function() {
+            setTimeout(addAltTextButton, 1000);
         });
     }
 
     // Handle alt text generation on attachment edit pages
-    $('#generate_attachment_alt_text').on('click', function(e) {
+    $(document).on('click', '#generate_attachment_alt_text', function(e) {
         e.preventDefault();
 
         var $button = $(this);
@@ -192,11 +280,14 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success) {
-                    $('#alt_text_output').html('<div class="notice notice-success"><p>Alt text saved successfully!</p></div>');
-                    // Refresh the current alt text display
-                    location.reload();
+                    $('#alt_text_output').append('<div class="notice notice-success"><p>' + response.data.message + '</p></div>');
+                    // Update any alt text fields on the page
+                    var altInput = $('input[name="attachments[' + attachmentId + '][alt]"], #attachment_alt, input[name="_wp_attachment_image_alt"]');
+                    if (altInput.length) {
+                        altInput.val(altText);
+                    }
                 } else {
-                    $('#alt_text_output').html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
+                    $('#alt_text_output').append('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
                 }
             },
             error: function() {
@@ -205,12 +296,23 @@ jQuery(document).ready(function($) {
         });
     }
 
-    // Prepend the "Generate Meta Description" button
-    $('#meta_description_boy_generate_meta_description').on('click', function(e) {
+    // Meta Description Generation - Use event delegation to handle dynamically added elements
+    $(document).on('click', '#meta_description_boy_generate_meta_description', function(e) {
         e.preventDefault();
+
+        console.log('Meta description button clicked'); // Debug log
 
         var $this = $(this); // Reference to the button
         var originalButtonText = $this.text(); // Store the original button text
+
+        // Check if meta_description_boy_data is available
+        if (typeof meta_description_boy_data === 'undefined') {
+            console.error('meta_description_boy_data is not defined');
+            alert('Script configuration error. Please refresh the page and try again.');
+            return;
+        }
+
+        console.log('Using post ID:', meta_description_boy_data.post_id); // Debug log
 
         // Display spinner inside the button and disable it
         $this.html('<span class="spinner is-active" style="margin: 0; float: none;"></span> Generating...');
@@ -225,6 +327,8 @@ jQuery(document).ready(function($) {
                 nonce: meta_description_boy_data.nonce
             },
             success: function(response) {
+                console.log('AJAX response:', response); // Debug log
+
                 // Restore the button to its original state
                 $this.text(originalButtonText);
                 $this.prop('disabled', false);
@@ -259,11 +363,43 @@ jQuery(document).ready(function($) {
                     outputDiv.html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
                 }
             },
-            error: function() {
+            error: function(xhr, status, error) {
+                console.error('AJAX error:', status, error); // Debug log
+
                 // Restore the button to its original state in case of an AJAX error
                 $this.text(originalButtonText);
                 $this.prop('disabled', false);
+
+                var outputDiv = $('#meta_description_boy_output');
+                outputDiv.html('<div class="notice notice-error"><p>Network error occurred. Please try again. Error: ' + error + '</p></div>');
             }
         });
+    });
+
+        // Debug: Log when the script loads and check for required elements
+    console.log('Website Optimiser admin.js loaded');
+    console.log('meta_description_boy_data available:', typeof meta_description_boy_data !== 'undefined');
+
+    if (typeof meta_description_boy_data !== 'undefined') {
+        console.log('meta_description_boy_data:', meta_description_boy_data);
+    }
+
+    // Check if the meta description button exists on page load
+    if ($('#meta_description_boy_generate_meta_description').length) {
+        console.log('Meta description button found on page load');
+    } else {
+        console.log('Meta description button not found on page load - will use event delegation');
+    }
+
+    // Check if meta box exists
+    if ($('#meta_description_boy_meta_box').length) {
+        console.log('Meta description meta box found');
+    } else {
+        console.log('Meta description meta box not found');
+    }
+
+        // Test event delegation by adding a manual test (for debugging only)
+    $(document).on('click', '.test-event-delegation', function() {
+        console.log('Event delegation test successful');
     });
 });
