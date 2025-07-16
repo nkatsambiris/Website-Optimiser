@@ -402,4 +402,51 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.test-event-delegation', function() {
         console.log('Event delegation test successful');
     });
+
+    // Handle H1 analysis refresh button
+    $(document).on('click', '#refresh-h1-analysis', function(e) {
+        e.preventDefault();
+
+        var $button = $(this);
+        var originalButtonText = $button.text();
+
+        // Check if meta_description_boy_data is available
+        if (typeof meta_description_boy_data === 'undefined') {
+            console.error('meta_description_boy_data is not defined');
+            alert('Script configuration error. Please refresh the page and try again.');
+            return;
+        }
+
+        // Show loading state
+        $button.html('<span class="spinner is-active" style="margin: 0; float: none;"></span> Refreshing...');
+        $button.prop('disabled', true);
+
+        $.ajax({
+            type: 'POST',
+            url: meta_description_boy_data.ajax_url,
+            data: {
+                action: 'meta_description_boy_refresh_h1_analysis',
+                nonce: meta_description_boy_data.nonce
+            },
+            success: function(response) {
+                console.log('H1 refresh response:', response);
+
+                if (response.success) {
+                    // Refresh the page to show updated stats
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.data.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('H1 refresh error:', status, error);
+                alert('Network error occurred. Please try again.');
+            },
+            complete: function() {
+                // Restore button state (in case we don't reload)
+                $button.text(originalButtonText);
+                $button.prop('disabled', false);
+            }
+        });
+    });
 });

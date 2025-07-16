@@ -39,10 +39,21 @@ function meta_description_boy_get_h1_stats() {
 
     // Check each post/page for H1 tags
     foreach ($all_posts as $post_id) {
-        $content = get_post_field('post_content', $post_id);
+        // Get the actual rendered content by doing a simulated frontend request
+        $post_url = get_permalink($post_id);
+        $response = wp_remote_get($post_url, array(
+            'timeout' => 30,
+            'user-agent' => 'Mozilla/5.0 (compatible; WordPress H1 Checker)'
+        ));
 
-        // Apply content filters (same as frontend display)
-        $content = apply_filters('the_content', $content);
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            // Fallback to content field method if remote request fails
+            $content = get_post_field('post_content', $post_id);
+            $content = apply_filters('the_content', $content);
+        } else {
+            // Use the actual rendered HTML
+            $content = wp_remote_retrieve_body($response);
+        }
 
         // Count H1 tags using regex, excluding editor elements
         preg_match_all('/<h1[^>]*>(.*?)<\/h1>/is', $content, $h1_matches);
@@ -50,9 +61,9 @@ function meta_description_boy_get_h1_stats() {
         $h1_count = 0;
         // Filter out Gutenberg editor elements and empty H1s
         foreach ($h1_matches[0] as $index => $h1_tag) {
-            // Skip if it's a Gutenberg editor element
+            // Skip if it's a Gutenberg editor element (but allow rendered post titles)
             if (preg_match('/contenteditable=["\'"]true["\'"]/', $h1_tag) ||
-                preg_match('/class=["\'][^"\']*(?:block-editor|editor-post-title|wp-block-post-title)[^"\']*["\']/', $h1_tag) ||
+                preg_match('/class=["\'][^"\']*(?:block-editor|editor-post-title)[^"\']*["\']/', $h1_tag) ||
                 preg_match('/role=["\'"]textbox["\']/', $h1_tag)) {
                 continue;
             }
@@ -121,20 +132,23 @@ function meta_description_boy_render_h1_headings_section() {
             <div class="stat-label">
                 <?php echo round($h1_stats['percentage'], 1); ?>% correct
             </div>
-            <?php if ($h1_stats['issues'] > 0): ?>
             <div class="stat-action">
-                <?php if ($h1_stats['no_h1'] > 0): ?>
-                <a href="<?php echo admin_url('edit.php?h1_missing=1'); ?>" class="button button-small">
-                    No H1 (<?php echo $h1_stats['no_h1']; ?>)
-                </a>
-                <?php endif; ?>
-                <?php if ($h1_stats['multiple_h1'] > 0): ?>
-                <a href="<?php echo admin_url('edit.php?h1_multiple=1'); ?>" class="button button-small" style="margin-left: 2px;">
-                    Multiple H1 (<?php echo $h1_stats['multiple_h1']; ?>)
-                </a>
+                <button id="refresh-h1-analysis" class="button button-small" style="margin-bottom: 5px;">
+                    🔄 Refresh
+                </button>
+                <?php if ($h1_stats['issues'] > 0): ?>
+                    <?php if ($h1_stats['no_h1'] > 0): ?>
+                    <a href="<?php echo admin_url('edit.php?h1_missing=1'); ?>" class="button button-small" style="margin-left: 2px;">
+                        No H1 (<?php echo $h1_stats['no_h1']; ?>)
+                    </a>
+                    <?php endif; ?>
+                    <?php if ($h1_stats['multiple_h1'] > 0): ?>
+                    <a href="<?php echo admin_url('edit.php?h1_multiple=1'); ?>" class="button button-small" style="margin-left: 2px;">
+                        Multiple H1 (<?php echo $h1_stats['multiple_h1']; ?>)
+                    </a>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
-            <?php endif; ?>
         </div>
     </div>
     <?php
@@ -159,10 +173,21 @@ function meta_description_boy_analyze_h1_tags() {
 
     // Check each post/page for H1 tags
     foreach ($all_posts as $post_id) {
-        $content = get_post_field('post_content', $post_id);
+        // Get the actual rendered content by doing a simulated frontend request
+        $post_url = get_permalink($post_id);
+        $response = wp_remote_get($post_url, array(
+            'timeout' => 30,
+            'user-agent' => 'Mozilla/5.0 (compatible; WordPress H1 Checker)'
+        ));
 
-        // Apply content filters (same as frontend display)
-        $content = apply_filters('the_content', $content);
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            // Fallback to content field method if remote request fails
+            $content = get_post_field('post_content', $post_id);
+            $content = apply_filters('the_content', $content);
+        } else {
+            // Use the actual rendered HTML
+            $content = wp_remote_retrieve_body($response);
+        }
 
         // Count H1 tags using regex, excluding editor elements
         preg_match_all('/<h1[^>]*>(.*?)<\/h1>/is', $content, $h1_matches);
@@ -170,9 +195,9 @@ function meta_description_boy_analyze_h1_tags() {
         $h1_count = 0;
         // Filter out Gutenberg editor elements and empty H1s
         foreach ($h1_matches[0] as $index => $h1_tag) {
-            // Skip if it's a Gutenberg editor element
+            // Skip if it's a Gutenberg editor element (but allow rendered post titles)
             if (preg_match('/contenteditable=["\'"]true["\'"]/', $h1_tag) ||
-                preg_match('/class=["\'][^"\']*(?:block-editor|editor-post-title|wp-block-post-title)[^"\']*["\']/', $h1_tag) ||
+                preg_match('/class=["\'][^"\']*(?:block-editor|editor-post-title)[^"\']*["\']/', $h1_tag) ||
                 preg_match('/role=["\'"]textbox["\']/', $h1_tag)) {
                 continue;
             }
@@ -214,4 +239,92 @@ function meta_description_boy_clear_h1_cache($post_id) {
  */
 function meta_description_boy_force_clear_h1_cache() {
     delete_transient('meta_description_boy_h1_analysis');
+}
+
+/**
+ * Handle AJAX request to refresh H1 analysis
+ */
+function meta_description_boy_refresh_h1_analysis() {
+    // Check nonce and permissions
+    if (!check_ajax_referer('meta_description_boy_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        wp_die(json_encode(array('success' => false, 'message' => 'Unauthorized')));
+    }
+
+    // Clear the cache to force fresh analysis
+    meta_description_boy_force_clear_h1_cache();
+
+    // Get fresh stats
+    $h1_stats = meta_description_boy_get_h1_stats();
+
+    wp_die(json_encode(array(
+        'success' => true,
+        'message' => 'H1 analysis refreshed successfully',
+        'stats' => $h1_stats
+    )));
+}
+add_action('wp_ajax_meta_description_boy_refresh_h1_analysis', 'meta_description_boy_refresh_h1_analysis');
+
+// Clear cache immediately after updating the filtering logic
+meta_description_boy_force_clear_h1_cache();
+
+/**
+ * Debug function to test H1 detection on a specific post
+ */
+function meta_description_boy_debug_h1_detection($post_id = null) {
+    if (!$post_id) {
+        // Get the first post to test with
+        $posts = get_posts(array(
+            'post_type' => array('post', 'page'),
+            'post_status' => 'publish',
+            'numberposts' => 1,
+            'fields' => 'ids',
+        ));
+        if (empty($posts)) {
+            return 'No posts found';
+        }
+        $post_id = $posts[0];
+    }
+
+    $content = get_post_field('post_content', $post_id);
+    $filtered_content = apply_filters('the_content', $content);
+
+    // Find all H1 tags
+    preg_match_all('/<h1[^>]*>(.*?)<\/h1>/is', $filtered_content, $h1_matches);
+
+    $debug_info = array(
+        'post_id' => $post_id,
+        'post_title' => get_the_title($post_id),
+        'raw_content_length' => strlen($content),
+        'filtered_content_length' => strlen($filtered_content),
+        'h1_matches_count' => count($h1_matches[0]),
+        'h1_tags_found' => array(),
+        'valid_h1_count' => 0
+    );
+
+    foreach ($h1_matches[0] as $index => $h1_tag) {
+        $h1_content = trim(strip_tags($h1_matches[1][$index]));
+
+        $is_editor_element = (
+            preg_match('/contenteditable=["\'"]true["\'"]/', $h1_tag) ||
+            preg_match('/class=["\'][^"\']*(?:block-editor|editor-post-title)[^"\']*["\']/', $h1_tag) ||
+            preg_match('/role=["\'"]textbox["\']/', $h1_tag)
+        );
+
+        $is_empty = empty($h1_content);
+        $is_valid = !$is_editor_element && !$is_empty;
+
+        if ($is_valid) {
+            $debug_info['valid_h1_count']++;
+        }
+
+        $debug_info['h1_tags_found'][] = array(
+            'tag' => $h1_tag,
+            'content' => $h1_content,
+            'is_editor_element' => $is_editor_element,
+            'is_empty' => $is_empty,
+            'is_valid' => $is_valid
+        );
+    }
+
+    return $debug_info;
 }

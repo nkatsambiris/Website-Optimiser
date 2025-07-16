@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.2.0
+* Version: 1.3.0
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -420,8 +420,10 @@ function meta_description_boy_enqueue_admin_scripts($hook) {
     }
 
     if ($should_load) {
-        wp_enqueue_script('meta_description_boy_admin_js', plugin_dir_url(__FILE__) . 'admin.js', array('jquery'), '2.0', true);
-        wp_enqueue_style('meta-description-boy-admin-styles', plugin_dir_url(__FILE__) . 'admin.css');
+        $version = filemtime(plugin_dir_path(__FILE__) . 'admin.js');
+        $version_css = filemtime(plugin_dir_path(__FILE__) . 'admin.css');
+        wp_enqueue_script('meta_description_boy_admin_js', plugin_dir_url(__FILE__) . 'admin.js', array('jquery'), $version, true);
+        wp_enqueue_style('meta-description-boy-admin-styles', plugin_dir_url(__FILE__) . 'admin.css', array(), $version_css);
 
         // Also enqueue media scripts for modal functionality
         wp_enqueue_media();
