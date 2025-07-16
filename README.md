@@ -15,6 +15,9 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 1.4.0 Changes
+- Option to bulk update image alt descriptions
+
 ## Version 1.3.0 Changes
 - Fix for H1 Headings check
 

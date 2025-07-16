@@ -252,3 +252,139 @@ button#generate-alt-text-btn {
         display: block;
     }
 }
+
+/* Bulk Alt Text Generation Styles */
+#bulk_progress {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+#bulk_progress #progress_text {
+    font-weight: 600;
+    color: #1d2327;
+    margin-bottom: 8px;
+    display: block;
+}
+
+#progress_bar {
+    transition: width 0.3s ease-in-out;
+    text-align: center;
+    line-height: 20px;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#bulk_status_table_container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    background: #fff;
+}
+
+#bulk_status_table {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+}
+
+#bulk_status_table th {
+    background: #f6f7f7;
+    border-bottom: 1px solid #c3c4c7;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#bulk_status_table td {
+    vertical-align: middle;
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+#bulk_status_table .status {
+    font-weight: 600;
+    text-align: center;
+}
+
+#bulk_status_table .result {
+    max-width: 300px;
+    word-wrap: break-word;
+    font-size: 13px;
+}
+
+#bulk_status_table tr:hover {
+    background: #f6f7f7;
+}
+
+/* Status row highlighting */
+#bulk_status_table tr.processing {
+    background: #e7f3ff;
+    border-left: 3px solid #0073aa;
+}
+
+#bulk_status_table tr.success {
+    background: #f0f9ff;
+    border-left: 3px solid #46b450;
+}
+
+#bulk_status_table tr.error {
+    background: #fef7f7;
+    border-left: 3px solid #dc3232;
+}
+
+/* Bulk generation container */
+.bulk-alt-text-container {
+    border: 1px solid #ddd;
+    background: #f9f9f9;
+    border-radius: 4px;
+    margin-top: 15px;
+    padding: 15px;
+}
+
+.bulk-alt-text-container h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #1d2327;
+}
+
+.bulk-alt-text-container .description {
+    margin-bottom: 15px;
+}
+
+#bulk_alt_text_generate,
+#bulk_alt_text_stop {
+    margin-right: 10px;
+}
+
+#bulk_alt_text_stop {
+    background: #dc3232;
+    border-color: #dc3232;
+    color: #fff;
+}
+
+#bulk_alt_text_stop:hover {
+    background: #c02d2d;
+    border-color: #c02d2d;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 782px) {
+    #bulk_status_table th,
+    #bulk_status_table td {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    #bulk_status_table .result {
+        max-width: 200px;
+    }
+
+    .bulk-alt-text-container {
+        padding: 10px;
+    }
+}

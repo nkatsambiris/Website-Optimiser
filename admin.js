@@ -36,11 +36,6 @@ jQuery(document).ready(function($) {
             $altTextInput = $('.compat-field-alt_text input, .compat-field-alt_text textarea');
         }
 
-        console.log('Alt text input field found:', $altTextInput.length > 0);
-        if ($altTextInput.length) {
-            console.log('Alt text input selector:', $altTextInput[0]);
-        }
-
         // Try to get attachment ID from various sources
         var attachmentId = null;
 
@@ -96,7 +91,6 @@ jQuery(document).ready(function($) {
 
                 if (response.success) {
                     var altText = response.data.alt_text;
-                    console.log('Generated alt text:', altText);
 
                     // Update the alt text field with multiple approaches
                     if ($altTextInput.length) {
@@ -112,14 +106,10 @@ jQuery(document).ready(function($) {
                                 var model = selection.first();
                                 if (model && model.set) {
                                     model.set('alt', altText);
-                                    console.log('Alt text set in media model');
                                 }
                             }
                         }
-
-                        console.log('Alt text field updated with:', altText);
                     } else {
-                        console.log('Alt text field not found, attempting to save directly via AJAX');
                         // If field not found, save directly via AJAX
                         saveAltTextDirectly(attachmentId, altText);
                     }
@@ -300,8 +290,6 @@ jQuery(document).ready(function($) {
     $(document).on('click', '#meta_description_boy_generate_meta_description', function(e) {
         e.preventDefault();
 
-        console.log('Meta description button clicked'); // Debug log
-
         var $this = $(this); // Reference to the button
         var originalButtonText = $this.text(); // Store the original button text
 
@@ -311,8 +299,6 @@ jQuery(document).ready(function($) {
             alert('Script configuration error. Please refresh the page and try again.');
             return;
         }
-
-        console.log('Using post ID:', meta_description_boy_data.post_id); // Debug log
 
         // Display spinner inside the button and disable it
         $this.html('<span class="spinner is-active" style="margin: 0; float: none;"></span> Generating...');
@@ -327,8 +313,6 @@ jQuery(document).ready(function($) {
                 nonce: meta_description_boy_data.nonce
             },
             success: function(response) {
-                console.log('AJAX response:', response); // Debug log
-
                 // Restore the button to its original state
                 $this.text(originalButtonText);
                 $this.prop('disabled', false);
@@ -376,32 +360,11 @@ jQuery(document).ready(function($) {
         });
     });
 
-        // Debug: Log when the script loads and check for required elements
-    console.log('Website Optimiser admin.js loaded');
-    console.log('meta_description_boy_data available:', typeof meta_description_boy_data !== 'undefined');
 
     if (typeof meta_description_boy_data !== 'undefined') {
         console.log('meta_description_boy_data:', meta_description_boy_data);
     }
 
-    // Check if the meta description button exists on page load
-    if ($('#meta_description_boy_generate_meta_description').length) {
-        console.log('Meta description button found on page load');
-    } else {
-        console.log('Meta description button not found on page load - will use event delegation');
-    }
-
-    // Check if meta box exists
-    if ($('#meta_description_boy_meta_box').length) {
-        console.log('Meta description meta box found');
-    } else {
-        console.log('Meta description meta box not found');
-    }
-
-        // Test event delegation by adding a manual test (for debugging only)
-    $(document).on('click', '.test-event-delegation', function() {
-        console.log('Event delegation test successful');
-    });
 
     // Handle H1 analysis refresh button
     $(document).on('click', '#refresh-h1-analysis', function(e) {
@@ -449,4 +412,182 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    // Bulk Alt Text Generation Variables
+    var bulkProcessing = false;
+    var imagesToProcess = [];
+    var currentImageIndex = 0;
+    var processedCount = 0;
+    var successCount = 0;
+    var errorCount = 0;
+
+    // Handle bulk alt text generation start
+    $(document).on('click', '#bulk_alt_text_generate', function(e) {
+        e.preventDefault();
+
+        if (bulkProcessing) {
+            console.log('Bulk processing already in progress, ignoring click');
+            return;
+        }
+
+        var $button = $(this);
+        var $stopButton = $('#bulk_alt_text_stop');
+        var $progressDiv = $('#bulk_progress');
+        var $tableContainer = $('#bulk_status_table_container');
+        var $tbody = $('#bulk_status_tbody');
+
+        // Check if meta_description_boy_data is available
+        if (typeof meta_description_boy_data === 'undefined') {
+            console.error('meta_description_boy_data is not defined');
+            alert('Script configuration error. Please refresh the page and try again.');
+            return;
+        }
+
+        // Reset variables
+        bulkProcessing = true;
+        currentImageIndex = 0;
+        processedCount = 0;
+        successCount = 0;
+        errorCount = 0;
+
+        // Update UI
+        $button.prop('disabled', true);
+        $stopButton.show();
+        $progressDiv.show();
+        $tableContainer.show();
+        $tbody.empty();
+
+        // Get list of images without alt text
+        $.ajax({
+            type: 'POST',
+            url: meta_description_boy_data.ajax_url,
+            data: {
+                action: 'meta_description_boy_get_images_without_alt_text',
+                nonce: meta_description_boy_data.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    imagesToProcess = response.data.images;
+                    var totalImages = response.data.total;
+
+                    if (totalImages === 0) {
+                        alert('No images found that need alt text generation.');
+                        resetBulkInterface();
+                        return;
+                    }
+
+                    $('#progress_text').text('Found ' + totalImages + ' images without alt text. Starting generation...');
+
+                    // Add rows to status table
+                    imagesToProcess.forEach(function(image) {
+                        var row = '<tr id="row_' + image.id + '">' +
+                            '<td><img src="' + image.thumbnail + '" style="width: 50px; height: 50px; object-fit: cover;" alt="Thumbnail"></td>' +
+                            '<td>' + image.title + '</td>' +
+                            '<td class="status">Pending</td>' +
+                            '<td class="result">-</td>' +
+                            '</tr>';
+                        $tbody.append(row);
+                    });
+
+                    // Start processing
+                    processNextImage();
+                } else {
+                    alert('Error: ' + response.data.message);
+                    resetBulkInterface();
+                }
+            },
+            error: function() {
+                alert('Network error occurred. Please try again.');
+                resetBulkInterface();
+            }
+        });
+    });
+
+    // Handle bulk alt text generation stop
+    $(document).on('click', '#bulk_alt_text_stop', function(e) {
+        e.preventDefault();
+        bulkProcessing = false;
+        resetBulkInterface();
+        $('#progress_text').text('Stopped by user. Processed ' + processedCount + ' of ' + imagesToProcess.length + ' images.');
+    });
+
+    // Process next image in queue
+    function processNextImage() {
+        if (!bulkProcessing || currentImageIndex >= imagesToProcess.length) {
+            // Processing complete
+            bulkProcessing = false;
+            resetBulkInterface();
+            $('#progress_text').text('Complete! Processed ' + processedCount + ' images. Success: ' + successCount + ', Errors: ' + errorCount);
+            return;
+        }
+
+        var image = imagesToProcess[currentImageIndex];
+        var $row = $('#row_' + image.id);
+        var $statusCell = $row.find('.status');
+        var $resultCell = $row.find('.result');
+
+        // Update status
+        $statusCell.html('<span class="spinner is-active" style="margin: 0;"></span> Processing');
+
+        // Update progress
+        var progressPercent = Math.round((currentImageIndex / imagesToProcess.length) * 100);
+        $('#progress_bar').css('width', progressPercent + '%');
+        $('#progress_text').text('Processing image ' + (currentImageIndex + 1) + ' of ' + imagesToProcess.length + ' - ' + image.title);
+
+        // Scroll to current row
+        $row[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Process the image
+        $.ajax({
+            type: 'POST',
+            url: meta_description_boy_data.ajax_url,
+            data: {
+                action: 'meta_description_boy_bulk_process_single_image',
+                attachment_id: image.id,
+                nonce: meta_description_boy_data.nonce
+            },
+            success: function(response) {
+                processedCount++;
+
+                if (response.success) {
+                    successCount++;
+                    $statusCell.html('<span style="color: green;">✓ Success</span>');
+                    $resultCell.text(response.data.alt_text);
+                } else {
+                    errorCount++;
+                    $statusCell.html('<span style="color: red;">✗ Error</span>');
+                    $resultCell.text(response.data.message);
+                }
+
+                // Process next image after a short delay
+                currentImageIndex++;
+                setTimeout(function() {
+                    if (bulkProcessing) {
+                        processNextImage();
+                    }
+                }, 1000); // 1 second delay between requests to avoid rate limiting
+            },
+            error: function() {
+                processedCount++;
+                errorCount++;
+                $statusCell.html('<span style="color: red;">✗ Error</span>');
+                $resultCell.text('Network error');
+
+                // Process next image
+                currentImageIndex++;
+                setTimeout(function() {
+                    if (bulkProcessing) {
+                        processNextImage();
+                    }
+                }, 1000);
+            }
+        });
+    }
+
+    // Reset bulk processing interface
+    function resetBulkInterface() {
+        $('#bulk_alt_text_generate').prop('disabled', false);
+        $('#bulk_alt_text_stop').hide();
+        $('#progress_bar').css('width', '100%');
+    }
 });

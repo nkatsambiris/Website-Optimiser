@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.3.0
+* Version: 1.4.0
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -331,6 +331,34 @@ function meta_description_boy_auto_alt_text_field_cb() {
     $auto_alt_text = get_option('meta_description_boy_auto_alt_text', 1); // Default to enabled
     echo "<input type='checkbox' name='meta_description_boy_auto_alt_text' value='1'" . checked(1, $auto_alt_text, false) . " />";
     echo "<p class='description'>Automatically generate alt text for images when they are uploaded. Only applies to new uploads.</p>";
+
+    // Add bulk generation button and controls
+    echo "<div style='margin-top: 15px; padding: 15px; border: 1px solid #ddd; background: #f9f9f9;'>";
+    echo "<h4>Bulk Alt Text Generation</h4>";
+    echo "<p class='description'>Generate alt text for existing images that don't have alt text or have empty alt text.</p>";
+    echo "<button type='button' id='bulk_alt_text_generate' class='button button-secondary'>Start Bulk Generation</button>";
+    echo "<button type='button' id='bulk_alt_text_stop' class='button button-secondary' style='display: none; margin-left: 10px;'>Stop</button>";
+    echo "<div id='bulk_progress' style='margin-top: 10px; display: none;'>";
+    echo "<div style='margin-bottom: 10px;'>";
+    echo "<span id='progress_text'>Preparing...</span>";
+    echo "<div style='width: 100%; background-color: #f0f0f0; border-radius: 5px; margin-top: 5px;'>";
+    echo "<div id='progress_bar' style='width: 0%; height: 20px; background-color: #0073aa; border-radius: 5px; transition: width 0.3s;'></div>";
+    echo "</div>";
+    echo "</div>";
+    echo "</div>";
+    echo "<div id='bulk_status_table_container' style='margin-top: 20px; display: none;'>";
+    echo "<h4>Processing Status</h4>";
+    echo "<table id='bulk_status_table' class='wp-list-table widefat fixed striped'>";
+    echo "<thead><tr>";
+    echo "<th style='width: 80px;'>Thumbnail</th>";
+    echo "<th>Title</th>";
+    echo "<th style='width: 100px;'>Status</th>";
+    echo "<th>Alt Text / Error</th>";
+    echo "</tr></thead>";
+    echo "<tbody id='bulk_status_tbody'></tbody>";
+    echo "</table>";
+    echo "</div>";
+    echo "</div>";
 }
 
 function meta_description_boy_instruction_text_field_cb() {
@@ -407,12 +435,13 @@ function meta_description_boy_enqueue_admin_scripts($hook) {
         error_log('Meta Description Boy: Post type: ' . (isset($post) ? $post->post_type : 'no post'));
     }
 
-    // Load on post edit pages, upload page, attachment edit pages, and optimization page
+    // Load on post edit pages, upload page, attachment edit pages, optimization page, and settings page
     $should_load = (
         ('post.php' == $hook || 'post-new.php' == $hook) ||
         ('upload.php' == $hook) ||
         ('post.php' == $hook && isset($post) && $post->post_type == 'attachment') ||
-        ('toplevel_page_website-optimisation' == $hook)
+        ('toplevel_page_website-optimisation' == $hook) ||
+        (strpos($hook, 'meta-description-boy') !== false)
     );
 
     if ($debug_enabled) {
@@ -708,6 +737,175 @@ function meta_description_boy_save_alt_text_ajax_request() {
     }
 }
 add_action('wp_ajax_meta_description_boy_save_alt_text', 'meta_description_boy_save_alt_text_ajax_request');
+
+// Handle AJAX request for bulk alt text generation - get images without alt text
+function meta_description_boy_get_images_without_alt_text() {
+    // Verify nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'meta_description_boy_nonce')) {
+        wp_send_json_error(array('message' => 'Invalid nonce'));
+    }
+
+    // Check if user has permission
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => 'Insufficient permissions'));
+    }
+
+    // Query for images without alt text or with empty alt text
+    $args = array(
+        'post_type' => 'attachment',
+        'post_mime_type' => 'image',
+        'post_status' => 'inherit',
+        'posts_per_page' => -1,
+        'meta_query' => array(
+            'relation' => 'OR',
+            array(
+                'key' => '_wp_attachment_image_alt',
+                'compare' => 'NOT EXISTS'
+            ),
+            array(
+                'key' => '_wp_attachment_image_alt',
+                'value' => '',
+                'compare' => '='
+            )
+        )
+    );
+
+    $images = get_posts($args);
+    $image_data = array();
+
+    foreach ($images as $image) {
+        $thumbnail = wp_get_attachment_image_src($image->ID, 'thumbnail');
+        $image_data[] = array(
+            'id' => $image->ID,
+            'title' => $image->post_title,
+            'thumbnail' => $thumbnail ? $thumbnail[0] : '',
+            'filename' => basename(get_attached_file($image->ID))
+        );
+    }
+
+    wp_send_json_success(array(
+        'images' => $image_data,
+        'total' => count($image_data)
+    ));
+}
+add_action('wp_ajax_meta_description_boy_get_images_without_alt_text', 'meta_description_boy_get_images_without_alt_text');
+
+// Handle AJAX request for bulk alt text generation - process single image
+function meta_description_boy_bulk_process_single_image() {
+    // Verify nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'meta_description_boy_nonce')) {
+        wp_send_json_error(array('message' => 'Invalid nonce'));
+    }
+
+    // Check if user has permission
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => 'Insufficient permissions'));
+    }
+
+    $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+
+    if (!$attachment_id) {
+        wp_send_json_error(array('message' => 'Invalid attachment ID'));
+    }
+
+    // Get attachment data
+    $attachment = get_post($attachment_id);
+    if (!$attachment || $attachment->post_type !== 'attachment') {
+        wp_send_json_error(array('message' => 'Attachment not found'));
+    }
+
+    // Check if it's an image
+    if (!wp_attachment_is_image($attachment_id)) {
+        wp_send_json_error(array('message' => 'File is not an image'));
+    }
+
+    $api_key = get_option('meta_description_boy_api_key');
+    if (empty($api_key)) {
+        wp_send_json_error(array('message' => 'Google Gemini API key not configured'));
+    }
+
+    // Get image URL
+    $image_url = wp_get_attachment_url($attachment_id);
+    if (!$image_url) {
+        wp_send_json_error(array('message' => 'Could not get image URL'));
+    }
+
+    // Get image data
+    $image_data = wp_remote_get($image_url);
+    if (is_wp_error($image_data)) {
+        wp_send_json_error(array('message' => 'Could not fetch image data: ' . $image_data->get_error_message()));
+    }
+
+    $image_content = wp_remote_retrieve_body($image_data);
+    $image_base64 = base64_encode($image_content);
+
+    // Get mime type
+    $mime_type = get_post_mime_type($attachment_id);
+
+    // Create prompt for alt text generation
+    $prompt = "Generate a concise, descriptive alt text for this image that would be suitable for web accessibility. Focus on what's visible in the image and its key elements. Keep it under 125 characters and don't start with 'Image of' or 'Photo of'.";
+
+    // Making an API call to Google Gemini Vision
+    $response = wp_remote_post('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $api_key, array(
+        'headers' => array(
+            'Content-Type' => 'application/json',
+        ),
+        'body' => json_encode(array(
+            'contents' => array(
+                array(
+                    'parts' => array(
+                        array(
+                            'text' => $prompt
+                        ),
+                        array(
+                            'inline_data' => array(
+                                'mime_type' => $mime_type,
+                                'data' => $image_base64
+                            )
+                        )
+                    )
+                )
+            )
+        )),
+        'timeout' => 30
+    ));
+
+    if (is_wp_error($response)) {
+        $error_message = $response->get_error_message();
+        wp_send_json_error(array('message' => 'Gemini API Request Error: ' . $error_message));
+    } else {
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code !== 200) {
+            $body = wp_remote_retrieve_body($response);
+            $error_data = json_decode($body, true);
+            $error_message = isset($error_data['error']['message']) ? $error_data['error']['message'] : 'HTTP ' . $response_code;
+            wp_send_json_error(array('message' => 'Gemini API Response Error: ' . $error_message));
+        } else {
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+
+            $alt_text = isset($data['candidates'][0]['content']['parts'][0]['text']) ? trim($data['candidates'][0]['content']['parts'][0]['text']) : '';
+
+            if ($alt_text) {
+                // Remove quotes if they exist at the beginning and end
+                $alt_text = trim($alt_text, '"\'');
+
+                // Save the alt text
+                $result = update_post_meta($attachment_id, '_wp_attachment_image_alt', $alt_text);
+
+                if ($result !== false) {
+                    wp_send_json_success(array('alt_text' => $alt_text));
+                } else {
+                    wp_send_json_error(array('message' => 'Failed to save alt text'));
+                }
+            } else {
+                $error_message = isset($data['error']) ? $data['error']['message'] : 'Unexpected error generating alt text';
+                wp_send_json_error(array('message' => 'Gemini Error: ' . $error_message));
+            }
+        }
+    }
+}
+add_action('wp_ajax_meta_description_boy_bulk_process_single_image', 'meta_description_boy_bulk_process_single_image');
 
 // Automatically generate alt text when an image is uploaded
 function meta_description_boy_auto_generate_alt_text($attachment_id) {
