@@ -852,18 +852,35 @@ function meta_description_boy_dashboard_widget_content() {
  * Handle AJAX request to email SEO report
  */
 function meta_description_boy_handle_email_report() {
+    // Enable error logging for debugging
+    $debug_enabled = get_option('meta_description_boy_debug_enabled', false);
+
+    if ($debug_enabled) {
+        error_log('SEO Email Report: AJAX handler triggered');
+        error_log('SEO Email Report: POST data - ' . print_r($_POST, true));
+    }
+
     // Security checks
     if (!current_user_can('manage_options')) {
+        if ($debug_enabled) {
+            error_log('SEO Email Report: Access denied - user lacks manage_options capability');
+        }
         wp_send_json_error(array('message' => 'Access denied.'));
     }
 
-    if (!wp_verify_nonce($_POST['nonce'], 'seo_email_report_nonce')) {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'seo_email_report_nonce')) {
+        if ($debug_enabled) {
+            error_log('SEO Email Report: Invalid nonce - ' . (isset($_POST['nonce']) ? $_POST['nonce'] : 'missing'));
+        }
         wp_send_json_error(array('message' => 'Invalid security token.'));
     }
 
     // Get and validate email address
     $email_address = sanitize_email($_POST['email_address']);
     if (!is_email($email_address)) {
+        if ($debug_enabled) {
+            error_log('SEO Email Report: Invalid email address - ' . $email_address);
+        }
         wp_send_json_error(array('message' => 'Please enter a valid email address.'));
     }
 
@@ -876,20 +893,99 @@ function meta_description_boy_handle_email_report() {
         $email_subject = 'SEO Report for ' . get_bloginfo('name');
     }
 
+    if ($debug_enabled) {
+        error_log('SEO Email Report: Email details - To: ' . $email_address . ', Subject: ' . $email_subject);
+    }
+
     // Generate report content
-    $report_content = meta_description_boy_generate_email_report($email_message);
+    try {
+        $report_content = meta_description_boy_generate_email_report($email_message);
+        if ($debug_enabled) {
+            error_log('SEO Email Report: Report content generated successfully (length: ' . strlen($report_content) . ')');
+        }
+    } catch (Exception $e) {
+        if ($debug_enabled) {
+            error_log('SEO Email Report: Error generating report content - ' . $e->getMessage());
+        }
+        wp_send_json_error(array('message' => 'Failed to generate report content.'));
+    }
+
+    // Prepare email headers
+    $headers = array('Content-Type: text/html; charset=UTF-8');
+
+    // Add From header if site has a custom email setup
+    $admin_email = get_option('admin_email');
+    $site_name = get_bloginfo('name');
+    $headers[] = 'From: ' . $site_name . ' <' . $admin_email . '>';
+
+    if ($debug_enabled) {
+        error_log('SEO Email Report: Email headers - ' . print_r($headers, true));
+
+        // Check WordPress mail configuration
+        $mail_config = array(
+            'admin_email' => $admin_email,
+            'smtp_configured' => defined('SMTP_USER') || class_exists('PHPMailer\PHPMailer\PHPMailer'),
+            'wp_mail_function_exists' => function_exists('wp_mail')
+        );
+        error_log('SEO Email Report: Mail configuration - ' . print_r($mail_config, true));
+    }
 
     // Send email
-    $headers = array('Content-Type: text/html; charset=UTF-8');
     $sent = wp_mail($email_address, $email_subject, $report_content, $headers);
 
+    if ($debug_enabled) {
+        error_log('SEO Email Report: wp_mail result - ' . ($sent ? 'SUCCESS' : 'FAILED'));
+
+        // Log any WordPress errors
+        global $wp_error;
+        if (is_wp_error($wp_error) && $wp_error->has_errors()) {
+            error_log('SEO Email Report: WordPress errors - ' . print_r($wp_error->get_error_messages(), true));
+        }
+
+        // Check for common mail issues
+        if (!$sent) {
+            error_log('SEO Email Report: Checking common mail issues...');
+
+            // Test basic email functionality
+            $test_result = wp_mail($admin_email, 'Mail Test', 'This is a test email to verify mail functionality.');
+            error_log('SEO Email Report: Test email to admin result - ' . ($test_result ? 'SUCCESS' : 'FAILED'));
+
+            // Check if mail function is disabled
+            if (!function_exists('mail')) {
+                error_log('SEO Email Report: PHP mail() function is not available');
+            }
+        }
+    }
+
     if ($sent) {
+        if ($debug_enabled) {
+            error_log('SEO Email Report: Email sent successfully to ' . $email_address);
+        }
         wp_send_json_success(array('message' => 'Report sent successfully to ' . $email_address));
     } else {
-        wp_send_json_error(array('message' => 'Failed to send email. Please check your email configuration.'));
+        if ($debug_enabled) {
+            error_log('SEO Email Report: Failed to send email to ' . $email_address);
+        }
+
+        // Provide more helpful error message
+        $error_message = 'Failed to send email. ';
+
+        // Check common issues and provide specific guidance
+        if (!function_exists('mail')) {
+            $error_message .= 'PHP mail function is not available on this server.';
+        } elseif (empty($admin_email) || !is_email($admin_email)) {
+            $error_message .= 'Invalid admin email configuration.';
+        } else {
+            $error_message .= 'Please check your email/SMTP configuration or contact your hosting provider.';
+        }
+
+        wp_send_json_error(array('message' => $error_message));
     }
 }
 add_action('wp_ajax_seo_email_report', 'meta_description_boy_handle_email_report');
+add_action('wp_ajax_nopriv_seo_email_report', 'meta_description_boy_handle_email_report'); // Allow for non-admin users if needed
+
+
 
 /**
  * Generate HTML email report content
