@@ -1,14 +1,14 @@
 <?php
 /**
  * Media Videos Check Component
- * Checks if there are any videos stored in the media library
+ * Checks if there are any videos stored in the media library (over 5MB)
  */
 
 // Prevent direct access
 defined('ABSPATH') || exit;
 
 /**
- * Check media library for videos
+ * Check media library for videos (only count videos over 5MB as problematic)
  */
 function meta_description_boy_check_media_videos_status() {
     // Get video attachments from media library
@@ -27,26 +27,45 @@ function meta_description_boy_check_media_videos_status() {
             'video/3gp',
             'video/ogg'
         ),
-        'numberposts' => -1,
-        'fields' => 'ids'
+        'numberposts' => -1
     ));
 
-    $video_count = count($video_attachments);
+    $large_video_count = 0;
+    $total_video_count = count($video_attachments);
+    $size_limit = 5 * 1024 * 1024; // 5MB in bytes
 
-    if ($video_count > 0) {
+    // Count only videos over 5MB
+    foreach ($video_attachments as $video) {
+        $file_path = get_attached_file($video->ID);
+
+        if ($file_path && file_exists($file_path)) {
+            $file_size = filesize($file_path);
+            if ($file_size > $size_limit) {
+                $large_video_count++;
+            }
+        }
+    }
+
+    if ($large_video_count > 0) {
         return array(
             'class' => 'status-error',
-            'status' => 'Videos found in media library',
-            'count' => $video_count,
-            'message' => $video_count . ' video' . ($video_count > 1 ? 's' : '') . ' found in media library',
+            'status' => 'Large videos found in media library',
+            'count' => $large_video_count,
+            'total_count' => $total_video_count,
+            'message' => $large_video_count . ' video' . ($large_video_count > 1 ? 's' : '') . ' over 5MB found in media library',
             'exists' => false // Using false to indicate this is a "fail" condition
         );
     } else {
+        $message = $total_video_count > 0
+            ? 'All videos are under 5MB'
+            : 'No videos in media library';
+
         return array(
             'class' => 'status-good',
-            'status' => 'No videos in media library',
+            'status' => $message,
             'count' => 0,
-            'message' => 'No videos found in media library',
+            'total_count' => $total_video_count,
+            'message' => $message,
             'exists' => true // Using true to indicate this is a "pass" condition
         );
     }
@@ -78,6 +97,9 @@ function meta_description_boy_get_media_videos_stats() {
     $video_count = count($video_attachments);
     $total_size = 0;
     $video_details = array();
+    $large_videos = array();
+    $small_videos = array();
+    $size_limit = 5 * 1024 * 1024; // 5MB in bytes
 
     foreach ($video_attachments as $video) {
         $file_path = get_attached_file($video->ID);
@@ -88,7 +110,7 @@ function meta_description_boy_get_media_videos_stats() {
             $total_size += $file_size;
         }
 
-        $video_details[] = array(
+        $video_detail = array(
             'id' => $video->ID,
             'title' => $video->post_title,
             'filename' => basename($file_path),
@@ -96,14 +118,27 @@ function meta_description_boy_get_media_videos_stats() {
             'size' => $file_size,
             'date' => $video->post_date
         );
+
+        $video_details[] = $video_detail;
+
+        // Separate large and small videos
+        if ($file_size > $size_limit) {
+            $large_videos[] = $video_detail;
+        } else {
+            $small_videos[] = $video_detail;
+        }
     }
 
     return array(
         'total_videos' => $video_count,
+        'large_videos_count' => count($large_videos),
+        'small_videos_count' => count($small_videos),
         'total_size' => $total_size,
         'total_size_formatted' => size_format($total_size),
         'videos' => $video_details,
-        'status' => $video_count > 0 ? 'error' : 'good'
+        'large_videos' => $large_videos,
+        'small_videos' => $small_videos,
+        'status' => count($large_videos) > 0 ? 'error' : 'good'
     );
 }
 
@@ -129,18 +164,32 @@ function meta_description_boy_render_media_videos_section() {
                     <br><small><strong>Total videos:</strong> <?php echo $stats['total_videos']; ?></small>
                     <br><small><strong>Total size:</strong> <?php echo $stats['total_size_formatted']; ?></small>
 
-                    <?php if (count($stats['videos']) <= 5): // Only show list if not too many ?>
-                        <br><br><small><strong>Videos found:</strong></small>
-                        <?php foreach ($stats['videos'] as $video): ?>
+                    <?php if ($stats['large_videos_count'] > 0): ?>
+                        <br><small><strong>Videos over 5MB:</strong> <?php echo $stats['large_videos_count']; ?></small>
+                    <?php endif; ?>
+
+                    <?php if ($stats['small_videos_count'] > 0): ?>
+                        <br><small><strong>Videos under 5MB:</strong> <?php echo $stats['small_videos_count']; ?> (acceptable)</small>
+                    <?php endif; ?>
+
+                    <?php
+                    // Show problematic videos if any
+                    if ($stats['large_videos_count'] > 0 && $stats['large_videos_count'] <= 5): ?>
+                        <br><br><small><strong>Large videos found (over 5MB):</strong></small>
+                        <?php foreach ($stats['large_videos'] as $video): ?>
                             <br><small>• <strong><?php echo esc_html($video['title'] ?: $video['filename']); ?></strong></small>
                             <br><small>&nbsp;&nbsp;Size: <?php echo size_format($video['size']); ?> | Added: <?php echo date('M j, Y', strtotime($video['date'])); ?></small>
                         <?php endforeach; ?>
-                    <?php elseif (count($stats['videos']) > 5): ?>
-                        <br><br><small><em>Too many videos to list individually. Use the button below to view all videos.</em></small>
+                    <?php elseif ($stats['large_videos_count'] > 5): ?>
+                        <br><br><small><em>Too many large videos to list individually. Use the button below to view all videos.</em></small>
                     <?php endif; ?>
 
                 <?php else: ?>
                     <br><br><small><strong>💡 Best Practice:</strong> Continue using external video platforms for hosting to keep your site fast and reduce hosting costs.</small>
+                <?php endif; ?>
+
+                <?php if ($stats['total_videos'] > 0): ?>
+                    <br><br><small><strong>💡 Note:</strong> Videos under 5MB are considered acceptable for performance.</small>
                 <?php endif; ?>
             </div>
             <div class="stat-action">
