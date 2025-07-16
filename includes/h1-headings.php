@@ -350,6 +350,87 @@ function meta_description_boy_refresh_h1_analysis() {
 }
 add_action('wp_ajax_meta_description_boy_refresh_h1_analysis', 'meta_description_boy_refresh_h1_analysis');
 
+/**
+ * Get posts for H1 analysis
+ */
+function meta_description_boy_get_posts_for_h1_analysis() {
+    // Add error logging
+    error_log('H1 Analysis: get_posts_for_h1_analysis called');
+
+    // Check nonce and permissions
+    if (!check_ajax_referer('meta_description_boy_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        error_log('H1 Analysis: Authorization failed');
+        wp_die(json_encode(array('success' => false, 'message' => 'Unauthorized')));
+    }
+
+    $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
+    error_log('H1 Analysis: Selected post types: ' . implode(', ', $selected_post_types));
+
+    // Get all published posts/pages
+    $all_posts = get_posts(array(
+        'post_type' => $selected_post_types,
+        'post_status' => 'publish',
+        'numberposts' => -1,
+        'fields' => 'ids',
+    ));
+
+    error_log('H1 Analysis: Found ' . count($all_posts) . ' posts');
+
+    $posts_data = array();
+
+    foreach ($all_posts as $post_id) {
+        $posts_data[] = array(
+            'id' => $post_id,
+            'title' => get_the_title($post_id),
+            'edit_url' => get_edit_post_link($post_id)
+        );
+    }
+
+    error_log('H1 Analysis: Returning ' . count($posts_data) . ' posts data');
+
+    wp_die(json_encode(array(
+        'success' => true,
+        'data' => array(
+            'posts' => $posts_data
+        )
+    )));
+}
+add_action('wp_ajax_meta_description_boy_get_posts_for_h1_analysis', 'meta_description_boy_get_posts_for_h1_analysis');
+
+/**
+ * Analyze H1 for a single post
+ */
+function meta_description_boy_analyze_single_post_h1() {
+    error_log('H1 Analysis: analyze_single_post_h1 called');
+
+    // Check nonce and permissions
+    if (!check_ajax_referer('meta_description_boy_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        error_log('H1 Analysis: Single post authorization failed');
+        wp_die(json_encode(array('success' => false, 'message' => 'Unauthorized')));
+    }
+
+    $post_id = intval($_POST['post_id']);
+    error_log('H1 Analysis: Analyzing post ID: ' . $post_id);
+
+    if (!$post_id) {
+        error_log('H1 Analysis: Invalid post ID provided');
+        wp_die(json_encode(array('success' => false, 'message' => 'Invalid post ID')));
+    }
+
+    // Use the existing function to analyze H1 count
+    $h1_count = meta_description_boy_analyze_h1_from_content($post_id);
+    error_log('H1 Analysis: Post ' . $post_id . ' has ' . $h1_count . ' H1 tags');
+
+    wp_die(json_encode(array(
+        'success' => true,
+        'data' => array(
+            'h1_count' => $h1_count,
+            'post_id' => $post_id
+        )
+    )));
+}
+add_action('wp_ajax_meta_description_boy_analyze_single_post_h1', 'meta_description_boy_analyze_single_post_h1');
+
 // Clear cache immediately after updating the filtering logic
 meta_description_boy_force_clear_h1_cache();
 

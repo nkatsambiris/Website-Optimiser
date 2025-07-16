@@ -1,3 +1,55 @@
+// Debug function to test if script is loaded
+window.testH1Modal = function() {
+    console.log('Test function called - script is loaded!');
+    if (typeof window.showH1AnalysisModal === 'function') {
+        console.log('showH1AnalysisModal function exists');
+        window.showH1AnalysisModal();
+    } else {
+        console.log('showH1AnalysisModal function does not exist');
+    }
+};
+
+// Debug function to test AJAX setup
+window.testAjaxSetup = function() {
+    console.log('Testing AJAX setup...');
+    console.log('meta_description_boy_data:', typeof meta_description_boy_data !== 'undefined' ? meta_description_boy_data : 'UNDEFINED');
+
+    if (typeof meta_description_boy_data === 'undefined') {
+        console.error('meta_description_boy_data is not defined!');
+        return;
+    }
+
+    // Test the refresh H1 analysis endpoint
+    jQuery.ajax({
+        type: 'POST',
+        url: meta_description_boy_data.ajax_url,
+        data: {
+            action: 'meta_description_boy_refresh_h1_analysis',
+            nonce: meta_description_boy_data.nonce
+        },
+        success: function(response) {
+            console.log('Refresh H1 test response (raw):', response);
+            console.log('Test response type:', typeof response);
+
+            if (typeof response === 'string') {
+                try {
+                    response = JSON.parse(response);
+                    console.log('Test parsed response:', response);
+                } catch (e) {
+                    console.error('Failed to parse test JSON response:', e);
+                    return;
+                }
+            }
+
+            console.log('Final test response:', response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Refresh H1 test error:', {xhr: xhr, status: status, error: error});
+            console.error('Response text:', xhr.responseText);
+        }
+    });
+};
+
 jQuery(document).ready(function($) {
 
     // Function to add alt text generation button to media modal
@@ -391,22 +443,48 @@ jQuery(document).ready(function($) {
                 action: 'meta_description_boy_refresh_h1_analysis',
                 nonce: meta_description_boy_data.nonce
             },
-            success: function(response) {
-                console.log('H1 refresh response:', response);
+                        success: function(response) {
+                console.log('H1 refresh response (raw):', response);
+                console.log('H1 refresh response type:', typeof response);
 
-                if (response.success) {
-                    // Refresh the page to show updated stats
-                    location.reload();
-                } else {
-                    alert('Error: ' + response.data.message);
+                // Parse response if it's a string
+                if (typeof response === 'string') {
+                    try {
+                        response = JSON.parse(response);
+                        console.log('H1 refresh parsed response:', response);
+                    } catch (e) {
+                        console.error('Failed to parse H1 refresh JSON response:', e);
+                        alert('Invalid response from server');
+                        $button.text(originalButtonText);
+                        $button.prop('disabled', false);
+                        return;
+                    }
+                }
+
+                // Restore button state first
+                $button.text(originalButtonText);
+                $button.prop('disabled', false);
+
+                try {
+                    if (response.success) {
+                        // Show detailed H1 analysis modal instead of just refreshing
+                        console.log('Opening H1 analysis modal...');
+                        window.showH1AnalysisModal();
+                    } else {
+                        var errorMessage = response.message || (response.data && response.data.message) || 'Unknown error';
+                        alert('Error: ' + errorMessage);
+                    }
+                } catch (e) {
+                    console.error('Error in H1 refresh success handler:', e);
+                    alert('An error occurred while processing the response. Check console for details.');
                 }
             },
             error: function(xhr, status, error) {
-                console.error('H1 refresh error:', status, error);
-                alert('Network error occurred. Please try again.');
-            },
-            complete: function() {
-                // Restore button state (in case we don't reload)
+                console.error('H1 refresh error:', {xhr: xhr, status: status, error: error});
+                console.error('H1 refresh response text:', xhr.responseText);
+                alert('Network error occurred. Please try again. Check console for details.');
+
+                // Restore button state
                 $button.text(originalButtonText);
                 $button.prop('disabled', false);
             }
@@ -590,4 +668,319 @@ jQuery(document).ready(function($) {
         $('#bulk_alt_text_stop').hide();
         $('#progress_bar').css('width', '100%');
     }
+
+    // H1 Analysis Modal Functions
+    window.showH1AnalysisModal = function() {
+        console.log('showH1AnalysisModal called - NEW VERSION');
+
+        // Create modal HTML if it doesn't exist
+        if (!$('#h1-analysis-modal').length) {
+            console.log('Creating modal HTML...');
+            var modalHTML = '<div id="h1-analysis-modal" class="h1-modal-overlay" style="display: none;">' +
+                '<div class="h1-modal-content">' +
+                    '<div class="h1-modal-header">' +
+                        '<h2>H1 Headings Analysis</h2>' +
+                        '<span class="h1-modal-close">&times;</span>' +
+                    '</div>' +
+                    '<div class="h1-modal-body">' +
+                        '<div id="h1-analysis-progress" style="display: none;">' +
+                            '<div class="h1-progress-bar-container">' +
+                                '<div class="h1-progress-bar" id="h1-progress-bar"></div>' +
+                            '</div>' +
+                            '<p id="h1-progress-text">Analyzing posts...</p>' +
+                        '</div>' +
+                        '<div id="h1-analysis-results" style="display: none;">' +
+                            '<div class="h1-summary"></div>' +
+                            '<table class="h1-results-table">' +
+                                '<thead>' +
+                                    '<tr>' +
+                                        '<th>Post ID</th>' +
+                                        '<th>Title</th>' +
+                                        '<th>H1 Count</th>' +
+                                        '<th>Status</th>' +
+                                        '<th>Action</th>' +
+                                    '</tr>' +
+                                '</thead>' +
+                                '<tbody id="h1-results-tbody">' +
+                                '</tbody>' +
+                            '</table>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+
+            $('body').append(modalHTML);
+            console.log('Modal HTML appended to body');
+        }
+
+        // Show modal and start analysis
+        console.log('Showing modal...');
+        $('#h1-analysis-modal').show();
+        $('#h1-analysis-progress').show();
+        $('#h1-analysis-results').hide();
+        console.log('Modal should be visible now');
+
+        startH1Analysis();
+    };
+
+    function startH1Analysis() {
+        console.log('startH1Analysis called');
+
+        var $progressBar = $('#h1-progress-bar');
+        var $progressText = $('#h1-progress-text');
+        var $resultsDiv = $('#h1-analysis-results');
+        var $tbody = $('#h1-results-tbody');
+        var $summary = $('.h1-summary');
+
+        console.log('Progress elements found:', {
+            progressBar: $progressBar.length,
+            progressText: $progressText.length,
+            resultsDiv: $resultsDiv.length,
+            tbody: $tbody.length,
+            summary: $summary.length
+        });
+
+        // Reset progress
+        $progressBar.css('width', '0%');
+        $tbody.empty();
+
+        console.log('About to make AJAX call for posts...');
+
+        // Get posts to analyze
+        $.ajax({
+            type: 'POST',
+            url: meta_description_boy_data.ajax_url,
+            data: {
+                action: 'meta_description_boy_get_posts_for_h1_analysis',
+                nonce: meta_description_boy_data.nonce
+            },
+            success: function(response) {
+                console.log('Get posts response (raw):', response);
+                console.log('Response type:', typeof response);
+
+                // Parse response if it's a string
+                if (typeof response === 'string') {
+                    try {
+                        response = JSON.parse(response);
+                        console.log('Parsed response:', response);
+                    } catch (e) {
+                        console.error('Failed to parse JSON response:', e);
+                        $progressText.text('Invalid response from server');
+                        return;
+                    }
+                }
+
+                if (response.success) {
+                    var posts = response.data.posts;
+                    var totalPosts = posts.length;
+
+                    if (totalPosts === 0) {
+                        $progressText.text('No posts found to analyze');
+                        return;
+                    }
+
+                    var currentIndex = 0;
+                    var startTime = new Date();
+                    var results = {
+                        correct: 0,
+                        no_h1: 0,
+                        multiple_h1: 0,
+                        total: totalPosts
+                    };
+
+                                            function analyzeNextPost() {
+                            if (currentIndex >= totalPosts) {
+                                // Analysis complete
+                                var endTime = new Date();
+                                var duration = Math.round((endTime - startTime) / 1000);
+                                results.duration = duration;
+                                showH1Results(results);
+                                return;
+                            }
+
+                        var post = posts[currentIndex];
+                        var progress = Math.round((currentIndex / totalPosts) * 100);
+
+                        $progressBar.css('width', progress + '%');
+                        $progressText.text('Analyzing post ' + (currentIndex + 1) + ' of ' + totalPosts + ': ' + post.title);
+
+                        // Analyze individual post
+                        $.ajax({
+                            type: 'POST',
+                            url: meta_description_boy_data.ajax_url,
+                            data: {
+                                action: 'meta_description_boy_analyze_single_post_h1',
+                                post_id: post.id,
+                                nonce: meta_description_boy_data.nonce
+                            },
+                            success: function(response) {
+                                console.log('Single post analysis response (raw):', response);
+
+                                // Parse response if it's a string
+                                if (typeof response === 'string') {
+                                    try {
+                                        response = JSON.parse(response);
+                                        console.log('Single post analysis parsed response:', response);
+                                    } catch (e) {
+                                        console.error('Failed to parse single post JSON response:', e);
+                                        // Add error row and continue
+                                        var row = '<tr>' +
+                                            '<td>' + post.id + '</td>' +
+                                            '<td><strong>' + post.title + '</strong></td>' +
+                                            '<td>-</td>' +
+                                            '<td class="h1-status-error">Parse Error</td>' +
+                                            '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                                        '</tr>';
+                                        $tbody.append(row);
+                                        currentIndex++;
+                                        setTimeout(analyzeNextPost, 500);
+                                        return;
+                                    }
+                                }
+
+                                if (response.success) {
+                                    var h1Count = response.data.h1_count;
+                                    var status = '';
+                                    var statusClass = '';
+
+                                    if (h1Count === 0) {
+                                        status = 'No H1';
+                                        statusClass = 'h1-status-error';
+                                        results.no_h1++;
+                                    } else if (h1Count === 1) {
+                                        status = 'Correct';
+                                        statusClass = 'h1-status-success';
+                                        results.correct++;
+                                    } else {
+                                        status = 'Multiple H1';
+                                        statusClass = 'h1-status-error';
+                                        results.multiple_h1++;
+                                    }
+
+                                    // Add row to table
+                                    var row = '<tr>' +
+                                        '<td>' + post.id + '</td>' +
+                                        '<td><strong>' + post.title + '</strong></td>' +
+                                        '<td>' + h1Count + '</td>' +
+                                        '<td class="' + statusClass + '">' + status + '</td>' +
+                                        '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                                    '</tr>';
+                                    $tbody.append(row);
+                                } else {
+                                    // Error analyzing post
+                                    var row = '<tr>' +
+                                        '<td>' + post.id + '</td>' +
+                                        '<td><strong>' + post.title + '</strong></td>' +
+                                        '<td>-</td>' +
+                                        '<td class="h1-status-error">Error</td>' +
+                                        '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                                    '</tr>';
+                                    $tbody.append(row);
+                                }
+
+                                currentIndex++;
+                                setTimeout(analyzeNextPost, 500); // Small delay between requests
+                            },
+                            error: function() {
+                                // Network error
+                                var row = '<tr>' +
+                                    '<td>' + post.id + '</td>' +
+                                    '<td><strong>' + post.title + '</strong></td>' +
+                                    '<td>-</td>' +
+                                    '<td class="h1-status-error">Network Error</td>' +
+                                    '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                                '</tr>';
+                                $tbody.append(row);
+
+                                currentIndex++;
+                                setTimeout(analyzeNextPost, 500);
+                            }
+                        });
+                    }
+
+                    analyzeNextPost();
+                } else {
+                    var errorMsg = response.message || response.data?.message || 'Unknown error';
+                    console.error('Error getting posts:', response);
+                    $progressText.text('Error getting posts: ' + errorMsg);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Network error getting posts:', {xhr: xhr, status: status, error: error});
+                console.error('Response text:', xhr.responseText);
+                $progressText.text('Network error occurred: ' + error);
+            }
+        });
+    }
+
+    function showH1Results(results) {
+        var $progressDiv = $('#h1-analysis-progress');
+        var $resultsDiv = $('#h1-analysis-results');
+        var $summary = $('.h1-summary');
+
+        // Hide progress, show results
+        $progressDiv.hide();
+        $resultsDiv.show();
+
+        // Calculate percentage
+        var percentage = results.total > 0 ? Math.round((results.correct / results.total) * 100) : 0;
+
+        // Show summary
+        var summaryHTML = '<div class="h1-summary-stats">' +
+            '<div class="h1-stat-item h1-stat-total">' +
+                '<span class="h1-stat-number">' + results.total + '</span>' +
+                '<span class="h1-stat-label">Total Posts</span>' +
+            '</div>' +
+            '<div class="h1-stat-item h1-stat-correct">' +
+                '<span class="h1-stat-number">' + results.correct + '</span>' +
+                '<span class="h1-stat-label">Correct (1 H1)</span>' +
+            '</div>' +
+            '<div class="h1-stat-item h1-stat-no-h1">' +
+                '<span class="h1-stat-number">' + results.no_h1 + '</span>' +
+                '<span class="h1-stat-label">No H1</span>' +
+            '</div>' +
+            '<div class="h1-stat-item h1-stat-multiple">' +
+                '<span class="h1-stat-number">' + results.multiple_h1 + '</span>' +
+                '<span class="h1-stat-label">Multiple H1</span>' +
+            '</div>' +
+            '<div class="h1-stat-item h1-stat-percentage">' +
+                '<span class="h1-stat-number">' + percentage + '%</span>' +
+                '<span class="h1-stat-label">Correct</span>' +
+            '</div>' +
+        '</div>';
+
+        $summary.html(summaryHTML);
+
+        // Add completion message and action buttons
+        var completionTime = results.duration ? ' (completed in ' + results.duration + ' seconds)' : '';
+        var actionButtons = '<div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">' +
+            '<p style="margin-bottom: 15px; color: #46b450; font-weight: 600;">✓ Analysis Complete' + completionTime + '</p>' +
+            '<button id="refresh-dashboard" class="button button-primary" style="margin-right: 10px;">Update Dashboard & Close</button>' +
+            '<button id="close-modal-only" class="button button-secondary">Close Modal</button>' +
+        '</div>';
+
+        $resultsDiv.append(actionButtons);
+
+        // Handle button clicks
+        $('#refresh-dashboard').on('click', function() {
+            $('#h1-analysis-modal').hide();
+            location.reload();
+        });
+
+        $('#close-modal-only').on('click', function() {
+            $('#h1-analysis-modal').hide();
+        });
+    }
+
+    // Close modal handlers
+    $(document).on('click', '.h1-modal-close, .h1-modal-overlay', function(e) {
+        if (e.target === this) {
+            $('#h1-analysis-modal').hide();
+        }
+    });
+
+    // Prevent modal content clicks from closing modal
+    $(document).on('click', '.h1-modal-content', function(e) {
+        e.stopPropagation();
+    });
 });
