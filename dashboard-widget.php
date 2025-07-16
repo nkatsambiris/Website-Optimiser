@@ -21,6 +21,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/wordfence-security.php';
 require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-recaptcha.php';
 require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-notifications.php';
 require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-confirmations.php';
+require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-conversion-events.php';
 require_once plugin_dir_path(__FILE__) . 'includes/redirects.php';
 require_once plugin_dir_path(__FILE__) . 'includes/hubspot.php';
 require_once plugin_dir_path(__FILE__) . 'includes/meta-pixel.php';
@@ -153,6 +154,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_gravity_forms_recaptcha_section();
         meta_description_boy_render_gravity_forms_notifications_section();
         meta_description_boy_render_gravity_forms_confirmations_section();
+        meta_description_boy_render_gravity_forms_conversion_events_section();
         meta_description_boy_render_redirects_section();
         meta_description_boy_render_hubspot_section();
         meta_description_boy_render_meta_pixel_section();
@@ -237,6 +239,9 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('meta_description_boy_check_gravity_forms_confirmations_status')) {
         $statuses[] = meta_description_boy_check_gravity_forms_confirmations_status();
+    }
+    if (function_exists('meta_description_boy_check_gravity_forms_conversion_events_status')) {
+        $statuses[] = meta_description_boy_check_gravity_forms_conversion_events_status();
     }
     if (function_exists('meta_description_boy_check_redirects_status')) {
         $statuses[] = meta_description_boy_check_redirects_status();

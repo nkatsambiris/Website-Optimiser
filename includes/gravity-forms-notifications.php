@@ -191,9 +191,7 @@ function meta_description_boy_render_gravity_forms_notifications_section() {
             </div>
             <div class="stat-action">
                 <?php if (!$notifications_status['gf_installed']): ?>
-                    <a href="<?php echo admin_url('plugin-install.php?s=gravity+forms&tab=search&type=term'); ?>" class="button button-small">
-                        Install Gravity Forms
-                    </a>
+                    <!-- Gravity Forms is not installed -->
                 <?php elseif (!$notifications_status['gf_active']): ?>
                     <a href="<?php echo admin_url('plugins.php'); ?>" class="button button-small">
                         Activate Gravity Forms
