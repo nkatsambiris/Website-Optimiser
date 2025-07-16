@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.5.0
+* Version: 1.6.0
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -38,6 +38,8 @@ function meta_description_boy_activate() {
     add_option('meta_description_boy_api_key', '');
     add_option('meta_description_boy_post_types', array('post', 'page'));
     add_option('meta_description_boy_auto_alt_text', 1); // Enable by default
+    add_option('meta_description_boy_enable_caching', 1); // Enable caching by default
+    add_option('meta_description_boy_cache_duration', 6); // Default 6 hours
 
     // Clear update caches to ensure updater works properly
     meta_description_boy_clear_update_cache();
@@ -97,6 +99,8 @@ function meta_description_boy_uninstall() {
     delete_option('meta_description_boy_debug_enabled');
     delete_option('meta_description_boy_auto_alt_text');
     delete_option('meta_description_boy_auto_generated_alt_text');
+    delete_option('meta_description_boy_enable_caching');
+    delete_option('meta_description_boy_cache_duration');
     // Clean up ManageWP options
     delete_option('meta_description_boy_no_managewp_approved');
     delete_option('meta_description_boy_no_managewp_approved_by');
@@ -105,6 +109,14 @@ function meta_description_boy_uninstall() {
     delete_option('meta_description_boy_selected_model');
     delete_option('meta_description_boy_prompt_text');
     delete_option('meta_description_boy_access_role');
+
+    // Clear all plugin transients
+    delete_transient('meta_description_boy_h1_stats');
+    delete_transient('meta_description_boy_sitemap_check');
+    delete_transient('meta_description_boy_robots_check');
+    delete_transient('meta_description_boy_meta_description_stats');
+    delete_transient('meta_description_boy_alt_text_stats');
+    delete_transient('meta_description_boy_featured_image_stats');
 }
 register_uninstall_hook(__FILE__, 'meta_description_boy_uninstall');
 
@@ -309,6 +321,8 @@ function meta_description_boy_admin_init() {
     register_setting('meta_description_boy_options', 'meta_description_boy_allowed_roles');
     register_setting('meta_description_boy_options', 'meta_description_boy_debug_enabled');
     register_setting('meta_description_boy_options', 'meta_description_boy_auto_alt_text');
+    register_setting('meta_description_boy_options', 'meta_description_boy_enable_caching');
+    register_setting('meta_description_boy_options', 'meta_description_boy_cache_duration');
 
     // Settings sections & fields
     add_settings_section('meta_description_boy_api_settings', 'API Settings', null, 'meta-description-boy');
@@ -319,6 +333,7 @@ function meta_description_boy_admin_init() {
     add_settings_field('meta_description_boy_allowed_roles_field', 'Allowed User Roles', 'meta_description_boy_allowed_roles_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
     add_settings_field('meta_description_boy_debug_field', 'Enable Debug Output', 'meta_description_boy_debug_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
     add_settings_field('meta_description_boy_auto_alt_text_field', 'Auto-Generate Alt Text', 'meta_description_boy_auto_alt_text_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
+    add_settings_field('meta_description_boy_caching_field', 'Performance Settings', 'meta_description_boy_caching_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
 }
 add_action('admin_init', 'meta_description_boy_admin_init');
 
@@ -359,6 +374,92 @@ function meta_description_boy_auto_alt_text_field_cb() {
     echo "</table>";
     echo "</div>";
     echo "</div>";
+}
+
+function meta_description_boy_caching_field_cb() {
+    $enable_caching = get_option('meta_description_boy_enable_caching', 1); // Default to enabled
+    $cache_duration = get_option('meta_description_boy_cache_duration', 6); // Default 6 hours
+
+    echo "<div style='margin-bottom: 15px;'>";
+    echo "<input type='checkbox' name='meta_description_boy_enable_caching' value='1'" . checked(1, $enable_caching, false) . " id='enable_caching_checkbox' />";
+    echo "<label for='enable_caching_checkbox'> Enable performance caching</label>";
+    echo "<p class='description'>Caching improves dashboard loading speed by storing analysis results temporarily.</p>";
+    echo "</div>";
+
+    echo "<div style='margin-bottom: 15px;'>";
+    echo "<label for='cache_duration_select'>Cache Duration: </label>";
+    echo "<select name='meta_description_boy_cache_duration' id='cache_duration_select'>";
+    echo "<option value='1'" . selected(1, $cache_duration, false) . ">1 hour</option>";
+    echo "<option value='3'" . selected(3, $cache_duration, false) . ">3 hours</option>";
+    echo "<option value='6'" . selected(6, $cache_duration, false) . ">6 hours</option>";
+    echo "<option value='12'" . selected(12, $cache_duration, false) . ">12 hours</option>";
+    echo "<option value='24'" . selected(24, $cache_duration, false) . ">24 hours</option>";
+    echo "</select>";
+    echo "<p class='description'>How long to cache analysis results before checking again.</p>";
+    echo "</div>";
+
+    echo "<div style='margin-top: 15px; padding: 15px; border: 1px solid #ddd; background: #f9f9f9;'>";
+    echo "<h4>Cache Management</h4>";
+    echo "<p class='description'>Use these buttons to manually refresh the analysis data.</p>";
+    echo "<button type='button' id='clear_all_cache' class='button button-secondary'>Clear All Cache</button>";
+    echo "<button type='button' id='refresh_analysis' class='button button-secondary' style='margin-left: 10px;'>Refresh Analysis</button>";
+    echo "<div id='cache_status' style='margin-top: 10px;'></div>";
+    echo "</div>";
+
+    // Add JavaScript for cache management
+    ?>
+    <script>
+    jQuery(document).ready(function($) {
+        $('#clear_all_cache').on('click', function() {
+            var $button = $(this);
+            var $status = $('#cache_status');
+
+            $button.prop('disabled', true).text('Clearing...');
+            $status.html('<span style="color: #666;">Clearing cache...</span>');
+
+            $.post(ajaxurl, {
+                action: 'meta_description_boy_clear_cache',
+                nonce: '<?php echo wp_create_nonce('meta_description_boy_nonce'); ?>'
+            }, function(response) {
+                if (response.success) {
+                    $status.html('<span style="color: #46b450;">✓ Cache cleared successfully</span>');
+                } else {
+                    $status.html('<span style="color: #dc3232;">✗ Error: ' + response.data.message + '</span>');
+                }
+                $button.prop('disabled', false).text('Clear All Cache');
+
+                setTimeout(function() {
+                    $status.html('');
+                }, 3000);
+            });
+        });
+
+        $('#refresh_analysis').on('click', function() {
+            var $button = $(this);
+            var $status = $('#cache_status');
+
+            $button.prop('disabled', true).text('Refreshing...');
+            $status.html('<span style="color: #666;">Refreshing analysis data...</span>');
+
+            $.post(ajaxurl, {
+                action: 'meta_description_boy_refresh_analysis',
+                nonce: '<?php echo wp_create_nonce('meta_description_boy_nonce'); ?>'
+            }, function(response) {
+                if (response.success) {
+                    $status.html('<span style="color: #46b450;">✓ Analysis refreshed successfully</span>');
+                } else {
+                    $status.html('<span style="color: #dc3232;">✗ Error: ' + response.data.message + '</span>');
+                }
+                $button.prop('disabled', false).text('Refresh Analysis');
+
+                setTimeout(function() {
+                    $status.html('');
+                }, 3000);
+            });
+        });
+    });
+    </script>
+    <?php
 }
 
 function meta_description_boy_instruction_text_field_cb() {
@@ -906,6 +1007,67 @@ function meta_description_boy_bulk_process_single_image() {
     }
 }
 add_action('wp_ajax_meta_description_boy_bulk_process_single_image', 'meta_description_boy_bulk_process_single_image');
+
+// Handle AJAX request for clearing cache
+function meta_description_boy_handle_clear_cache() {
+    // Verify nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'meta_description_boy_nonce')) {
+        wp_send_json_error(array('message' => 'Invalid nonce'));
+    }
+
+    // Check if user has permission
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => 'Insufficient permissions'));
+    }
+
+    // Clear all plugin caches
+    meta_description_boy_clear_h1_cache();
+    meta_description_boy_clear_sitemap_cache();
+    meta_description_boy_clear_robots_cache();
+    meta_description_boy_force_clear_h1_cache();
+
+    // Clear meta description cache if it exists
+    delete_transient('meta_description_boy_meta_description_stats');
+
+    // Clear alt text cache if it exists
+    delete_transient('meta_description_boy_alt_text_stats');
+
+    // Clear featured image cache if it exists
+    delete_transient('meta_description_boy_featured_image_stats');
+
+    wp_send_json_success(array('message' => 'All caches cleared successfully'));
+}
+add_action('wp_ajax_meta_description_boy_clear_cache', 'meta_description_boy_handle_clear_cache');
+
+// Handle AJAX request for refreshing analysis
+function meta_description_boy_handle_refresh_analysis() {
+    // Verify nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'meta_description_boy_nonce')) {
+        wp_send_json_error(array('message' => 'Invalid nonce'));
+    }
+
+    // Check if user has permission
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => 'Insufficient permissions'));
+    }
+
+    // Clear caches first
+    meta_description_boy_clear_h1_cache();
+    meta_description_boy_clear_sitemap_cache();
+    meta_description_boy_clear_robots_cache();
+    meta_description_boy_force_clear_h1_cache();
+
+    // Force regenerate stats to warm up cache
+    if (function_exists('meta_description_boy_get_h1_stats')) {
+        meta_description_boy_get_h1_stats();
+    }
+    if (function_exists('meta_description_boy_check_sitemap')) {
+        meta_description_boy_check_sitemap();
+    }
+
+    wp_send_json_success(array('message' => 'Analysis refreshed successfully'));
+}
+add_action('wp_ajax_meta_description_boy_refresh_analysis', 'meta_description_boy_handle_refresh_analysis');
 
 // Automatically generate alt text when an image is uploaded
 function meta_description_boy_auto_generate_alt_text($attachment_id) {

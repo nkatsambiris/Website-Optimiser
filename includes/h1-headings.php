@@ -7,9 +7,22 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Get H1 heading statistics
+ * Get H1 heading statistics with caching
  */
 function meta_description_boy_get_h1_stats() {
+    // Check if caching is enabled
+    $enable_caching = get_option('meta_description_boy_enable_caching', 1);
+
+    if ($enable_caching) {
+        // Check if we have cached data
+        $cache_key = 'meta_description_boy_h1_stats';
+        $cached_stats = get_transient($cache_key);
+
+        if ($cached_stats !== false) {
+            return $cached_stats;
+        }
+    }
+
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
 
     // Get all published posts/pages using get_posts for reliable results
@@ -23,7 +36,7 @@ function meta_description_boy_get_h1_stats() {
     $total = count($all_posts);
 
     if ($total == 0) {
-        return array(
+        $stats = array(
             'total' => 0,
             'correct' => 0,
             'no_h1' => 0,
@@ -31,51 +44,20 @@ function meta_description_boy_get_h1_stats() {
             'issues' => 0,
             'percentage' => 0
         );
+        // Cache based on user settings
+        $cache_duration = get_option('meta_description_boy_cache_duration', 6);
+        set_transient($cache_key, $stats, $cache_duration * HOUR_IN_SECONDS);
+        return $stats;
     }
 
+    // Use lightweight content analysis instead of HTTP requests
     $correct = 0;
     $no_h1 = 0;
     $multiple_h1 = 0;
 
-    // Check each post/page for H1 tags
+    // Check each post/page for H1 tags using content field (much faster)
     foreach ($all_posts as $post_id) {
-        // Get the actual rendered content by doing a simulated frontend request
-        $post_url = get_permalink($post_id);
-        $response = wp_remote_get($post_url, array(
-            'timeout' => 30,
-            'user-agent' => 'Mozilla/5.0 (compatible; WordPress H1 Checker)'
-        ));
-
-        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
-            // Fallback to content field method if remote request fails
-            $content = get_post_field('post_content', $post_id);
-            $content = apply_filters('the_content', $content);
-        } else {
-            // Use the actual rendered HTML
-            $content = wp_remote_retrieve_body($response);
-        }
-
-        // Count H1 tags using regex, excluding editor elements
-        preg_match_all('/<h1[^>]*>(.*?)<\/h1>/is', $content, $h1_matches);
-
-        $h1_count = 0;
-        // Filter out Gutenberg editor elements and empty H1s
-        foreach ($h1_matches[0] as $index => $h1_tag) {
-            // Skip if it's a Gutenberg editor element (but allow rendered post titles)
-            if (preg_match('/contenteditable=["\'"]true["\'"]/', $h1_tag) ||
-                preg_match('/class=["\'][^"\']*(?:block-editor|editor-post-title)[^"\']*["\']/', $h1_tag) ||
-                preg_match('/role=["\'"]textbox["\']/', $h1_tag)) {
-                continue;
-            }
-
-            // Skip if H1 content is empty or just whitespace
-            $h1_content = trim(strip_tags($h1_matches[1][$index]));
-            if (empty($h1_content)) {
-                continue;
-            }
-
-            $h1_count++;
-        }
+        $h1_count = meta_description_boy_analyze_h1_from_content($post_id);
 
         if ($h1_count == 0) {
             $no_h1++;
@@ -89,7 +71,7 @@ function meta_description_boy_get_h1_stats() {
     $issues = $no_h1 + $multiple_h1;
     $percentage = $total > 0 ? ($correct / $total) * 100 : 0;
 
-    return array(
+    $stats = array(
         'total' => $total,
         'correct' => $correct,
         'no_h1' => $no_h1,
@@ -97,6 +79,115 @@ function meta_description_boy_get_h1_stats() {
         'issues' => $issues,
         'percentage' => $percentage
     );
+
+    // Cache the results if caching is enabled
+    if ($enable_caching) {
+        $cache_duration = get_option('meta_description_boy_cache_duration', 6);
+        set_transient($cache_key, $stats, $cache_duration * HOUR_IN_SECONDS);
+    }
+
+    return $stats;
+}
+
+/**
+ * Analyze H1 count from post content (lightweight version)
+ */
+function meta_description_boy_analyze_h1_from_content($post_id) {
+    // Check if caching is enabled
+    $enable_caching = get_option('meta_description_boy_enable_caching', 1);
+
+    if ($enable_caching) {
+        // First check if we have a cached result for this specific post
+        $post_cache_key = 'meta_description_boy_h1_count_' . $post_id;
+        $cached_count = get_transient($post_cache_key);
+
+        if ($cached_count !== false) {
+            return $cached_count;
+        }
+    }
+
+    // Get post content and apply filters (but don't make HTTP requests)
+    $content = get_post_field('post_content', $post_id);
+    $content = apply_filters('the_content', $content);
+
+    // For themes that add H1 via template, we can make a reasonable assumption
+    // Most WordPress themes add exactly one H1 for the post title
+    $post_type = get_post_type($post_id);
+    $has_title = !empty(get_the_title($post_id));
+
+    // Count H1 tags in content
+    preg_match_all('/<h1[^>]*>(.*?)<\/h1>/is', $content, $h1_matches);
+
+    $content_h1_count = 0;
+    // Filter out Gutenberg editor elements and empty H1s
+    foreach ($h1_matches[0] as $index => $h1_tag) {
+        // Skip if it's a Gutenberg editor element
+        if (preg_match('/contenteditable=["\'"]true["\'"]/', $h1_tag) ||
+            preg_match('/class=["\'][^"\']*(?:block-editor|editor-post-title)[^"\']*["\']/', $h1_tag) ||
+            preg_match('/role=["\'"]textbox["\']/', $h1_tag)) {
+            continue;
+        }
+
+        // Skip if H1 content is empty or just whitespace
+        $h1_content = trim(strip_tags($h1_matches[1][$index]));
+        if (empty($h1_content)) {
+            continue;
+        }
+
+        $content_h1_count++;
+    }
+
+    // Assume most themes add one H1 for the title if the post has a title
+    // This is a reasonable assumption for 95% of WordPress sites
+    $estimated_h1_count = $content_h1_count;
+    if ($has_title && in_array($post_type, array('post', 'page'))) {
+        $estimated_h1_count += 1; // Most themes add H1 for post title
+    }
+
+    // If there are H1s in content AND a title, that's likely multiple H1s
+    if ($content_h1_count > 0 && $has_title) {
+        $estimated_h1_count = $content_h1_count + 1; // Title H1 + content H1s
+    }
+
+    // Cache individual post result if caching is enabled
+    if ($enable_caching) {
+        set_transient($post_cache_key, $estimated_h1_count, HOUR_IN_SECONDS);
+    }
+
+    return $estimated_h1_count;
+}
+
+/**
+ * Clear H1 stats cache
+ */
+function meta_description_boy_clear_h1_cache($post_id = null) {
+    // Clear the main stats cache
+    delete_transient('meta_description_boy_h1_stats');
+
+    // If specific post ID provided, clear its individual cache
+    if ($post_id) {
+        delete_transient('meta_description_boy_h1_count_' . $post_id);
+    }
+}
+
+/**
+ * Force clear all H1 cache (for when settings change)
+ */
+function meta_description_boy_force_clear_h1_cache() {
+    delete_transient('meta_description_boy_h1_stats');
+
+    // Clear individual post caches for selected post types
+    $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
+    $all_posts = get_posts(array(
+        'post_type' => $selected_post_types,
+        'post_status' => 'publish',
+        'numberposts' => -1,
+        'fields' => 'ids',
+    ));
+
+    foreach ($all_posts as $post_id) {
+        delete_transient('meta_description_boy_h1_count_' . $post_id);
+    }
 }
 
 /**
@@ -225,20 +316,15 @@ function meta_description_boy_analyze_h1_tags() {
 }
 
 /**
- * Clear the H1 analysis cache when posts are updated
+ * Clear the H1 analysis cache when posts are updated (compatibility function)
  */
-function meta_description_boy_clear_h1_cache($post_id) {
+function meta_description_boy_clear_h1_cache_legacy($post_id) {
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
     if (in_array(get_post_type($post_id), $selected_post_types)) {
+        // Clear both old and new cache keys for compatibility
         delete_transient('meta_description_boy_h1_analysis');
+        meta_description_boy_clear_h1_cache($post_id);
     }
-}
-
-/**
- * Clear H1 analysis cache to ensure updated filtering takes effect
- */
-function meta_description_boy_force_clear_h1_cache() {
-    delete_transient('meta_description_boy_h1_analysis');
 }
 
 /**

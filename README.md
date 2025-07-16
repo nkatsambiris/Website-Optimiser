@@ -15,6 +15,12 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 1.6.0 Changes
+- Update: Minor design tweaks
+- Fix: Performance improvements
+- New: Compact view mode
+- New: Global caching system in website optimiser settings
+
 ## Version 1.5.0 Changes
 - Fix issue with email report
 

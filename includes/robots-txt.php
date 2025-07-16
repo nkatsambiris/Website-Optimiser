@@ -7,9 +7,22 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Check robots.txt status
+ * Check robots.txt status with caching
  */
 function meta_description_boy_check_robots_txt() {
+    // Check if caching is enabled
+    $enable_caching = get_option('meta_description_boy_enable_caching', 1);
+
+    if ($enable_caching) {
+        // Check if we have cached data
+        $cache_key = 'meta_description_boy_robots_check';
+        $cached_result = get_transient($cache_key);
+
+        if ($cached_result !== false) {
+            return $cached_result;
+        }
+    }
+
     $site_url = get_site_url();
     $robots_url = $site_url . '/robots.txt';
 
@@ -20,12 +33,18 @@ function meta_description_boy_check_robots_txt() {
     ));
 
     if (is_wp_error($response)) {
-        return array(
+        $result = array(
             'exists' => false,
             'status' => 'Error',
             'message' => 'Could not check robots.txt',
             'class' => 'status-error'
         );
+
+        // Cache error result for shorter time if caching is enabled
+        if ($enable_caching) {
+            set_transient($cache_key, $result, 30 * MINUTE_IN_SECONDS);
+        }
+        return $result;
     }
 
     $response_code = wp_remote_retrieve_response_code($response);
@@ -36,14 +55,14 @@ function meta_description_boy_check_robots_txt() {
         $is_blocking_all = preg_match('/User-agent:\s*\*\s*Disallow:\s*\/\s*$/mi', $body);
 
         if ($is_blocking_all) {
-            return array(
+            $result = array(
                 'exists' => true,
                 'status' => 'Blocking',
                 'message' => 'Robots.txt blocks all crawlers',
                 'class' => 'status-warning'
             );
         } else {
-            return array(
+            $result = array(
                 'exists' => true,
                 'status' => 'Active',
                 'message' => 'Robots.txt found and accessible',
@@ -51,13 +70,21 @@ function meta_description_boy_check_robots_txt() {
             );
         }
     } else {
-        return array(
+        $result = array(
             'exists' => false,
             'status' => 'Missing',
             'message' => 'No robots.txt file found',
             'class' => 'status-warning'
         );
     }
+
+    // Cache the result if caching is enabled
+    if ($enable_caching) {
+        $cache_duration = get_option('meta_description_boy_cache_duration', 6);
+        set_transient($cache_key, $result, $cache_duration * HOUR_IN_SECONDS);
+    }
+
+    return $result;
 }
 
 /**
@@ -89,4 +116,11 @@ function meta_description_boy_render_robots_txt_section() {
         </div>
     </div>
     <?php
+}
+
+/**
+ * Clear robots.txt cache
+ */
+function meta_description_boy_clear_robots_cache() {
+    delete_transient('meta_description_boy_robots_check');
 }

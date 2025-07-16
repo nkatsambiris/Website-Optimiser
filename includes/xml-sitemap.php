@@ -7,9 +7,22 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Check XML sitemap status
+ * Check XML sitemap status with caching
  */
 function meta_description_boy_check_sitemap() {
+    // Check if caching is enabled
+    $enable_caching = get_option('meta_description_boy_enable_caching', 1);
+
+    if ($enable_caching) {
+        // Check if we have cached data
+        $cache_key = 'meta_description_boy_sitemap_check';
+        $cached_result = get_transient($cache_key);
+
+        if ($cached_result !== false) {
+            return $cached_result;
+        }
+    }
+
     $site_url = get_site_url();
     $possible_sitemaps = array(
         $site_url . '/sitemap_index.xml',
@@ -28,24 +41,44 @@ function meta_description_boy_check_sitemap() {
             $body = wp_remote_retrieve_body($response);
 
             if ($response_code == 200 && !empty(trim($body)) && strpos($body, '<?xml') !== false) {
-                return array(
+                $result = array(
                     'exists' => true,
                     'status' => 'Found',
                     'message' => 'XML sitemap available',
                     'class' => 'status-good',
                     'url' => $sitemap_url
                 );
+
+                // Cache successful result if caching is enabled
+                if ($enable_caching) {
+                    $cache_duration = get_option('meta_description_boy_cache_duration', 6);
+                    set_transient($cache_key, $result, $cache_duration * HOUR_IN_SECONDS);
+                }
+                return $result;
             }
         }
     }
 
-    return array(
+    $result = array(
         'exists' => false,
         'status' => 'Missing',
         'message' => 'No XML sitemap found',
         'class' => 'status-warning',
         'url' => null
     );
+
+    // Cache negative result if caching is enabled (shorter cache for missing sitemaps)
+    if ($enable_caching) {
+        set_transient($cache_key, $result, HOUR_IN_SECONDS);
+    }
+    return $result;
+}
+
+/**
+ * Clear sitemap cache
+ */
+function meta_description_boy_clear_sitemap_cache() {
+    delete_transient('meta_description_boy_sitemap_check');
 }
 
 /**
