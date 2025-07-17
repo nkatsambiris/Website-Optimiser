@@ -15,6 +15,9 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 1.8.0 Changes
+- NEW: Added new module for checking clickable links
+
 ## Version 1.7.1 Changes
 - Update: recommended dynamic year option
 
