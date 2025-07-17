@@ -10,20 +10,30 @@ defined( 'ABSPATH' ) || exit;
  * Get H1 heading statistics with caching (dashboard display version)
  */
 function meta_description_boy_get_h1_stats() {
-    // Check if we have cached data
-    $cache_key = 'meta_description_boy_h1_stats';
-    $cached_stats = get_transient($cache_key);
+    // Check if we have stored data in database
+    $stored_stats = get_option('meta_description_boy_h1_stats_data', false);
 
-    // Debug logging
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('H1 Stats Cache Check - Key: ' . $cache_key . ', Has Cache: ' . ($cached_stats !== false ? 'YES' : 'NO'));
-        if ($cached_stats !== false) {
-            error_log('H1 Stats Cached Data: ' . print_r($cached_stats, true));
+    // Backward compatibility: migrate from transient to database option
+    if ($stored_stats === false) {
+        $legacy_stats = get_transient('meta_description_boy_h1_stats');
+        if ($legacy_stats !== false && !isset($legacy_stats['needs_refresh'])) {
+            // Migrate valid legacy data to database
+            update_option('meta_description_boy_h1_stats_data', $legacy_stats);
+            delete_transient('meta_description_boy_h1_stats');
+            $stored_stats = $legacy_stats;
         }
     }
 
-    if ($cached_stats !== false) {
-        return $cached_stats;
+    // Debug logging
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('H1 Stats DB Check - Has Data: ' . ($stored_stats !== false ? 'YES' : 'NO'));
+        if ($stored_stats !== false) {
+            error_log('H1 Stats Stored Data: ' . print_r($stored_stats, true));
+        }
+    }
+
+    if ($stored_stats !== false) {
+        return $stored_stats;
     }
 
     // If no cached data, return a "needs refresh" state instead of running expensive analysis
@@ -76,9 +86,8 @@ function meta_description_boy_perform_h1_analysis() {
             'issues' => 0,
             'percentage' => 0
         );
-        // Cache the results
-        $cache_duration = get_option('meta_description_boy_cache_duration', 6);
-        set_transient('meta_description_boy_h1_stats', $stats, $cache_duration * HOUR_IN_SECONDS);
+        // Store the results in database
+        update_option('meta_description_boy_h1_stats_data', $stats);
         return $stats;
     }
 
@@ -109,16 +118,15 @@ function meta_description_boy_perform_h1_analysis() {
         'multiple_h1' => $multiple_h1,
         'issues' => $issues,
         'percentage' => $percentage
-    );
+        );
 
-    // Cache the results
-    $cache_duration = get_option('meta_description_boy_cache_duration', 6);
-    $cache_set = set_transient('meta_description_boy_h1_stats', $stats, $cache_duration * HOUR_IN_SECONDS);
+    // Store the results in database
+    $stored = update_option('meta_description_boy_h1_stats_data', $stats);
 
     // Debug logging
     if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('H1 Stats Cache Set - Duration: ' . $cache_duration . ' hours, Success: ' . ($cache_set ? 'YES' : 'NO'));
-        error_log('H1 Stats Being Cached: ' . print_r($stats, true));
+        error_log('H1 Stats DB Storage - Success: ' . ($stored ? 'YES' : 'NO'));
+        error_log('H1 Stats Being Stored: ' . print_r($stats, true));
     }
 
     return $stats;
@@ -266,10 +274,10 @@ function meta_description_boy_analyze_h1_frontend($post_id) {
  * Clear H1 stats cache
  */
 function meta_description_boy_clear_h1_cache($post_id = null) {
-    // Clear the main stats cache
-    delete_transient('meta_description_boy_h1_stats');
+    // Clear the main stats data
+    delete_option('meta_description_boy_h1_stats_data');
 
-    // If specific post ID provided, clear its individual cache
+    // If specific post ID provided, clear its individual cache (these can stay as transients for performance)
     if ($post_id) {
         delete_transient('meta_description_boy_h1_count_' . $post_id);
         delete_transient('meta_description_boy_h1_frontend_' . $post_id);
@@ -280,7 +288,7 @@ function meta_description_boy_clear_h1_cache($post_id = null) {
  * Force clear all H1 cache (for when settings change)
  */
 function meta_description_boy_force_clear_h1_cache() {
-    delete_transient('meta_description_boy_h1_stats');
+    delete_option('meta_description_boy_h1_stats_data');
 
     // Clear individual post caches for selected post types
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
@@ -446,8 +454,9 @@ function meta_description_boy_analyze_h1_tags() {
 function meta_description_boy_clear_h1_cache_legacy($post_id) {
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
     if (in_array(get_post_type($post_id), $selected_post_types)) {
-        // Clear both old and new cache keys for compatibility
+        // Clear both old transient and new database option for compatibility
         delete_transient('meta_description_boy_h1_analysis');
+        delete_option('meta_description_boy_h1_stats_data');
         meta_description_boy_clear_h1_cache($post_id);
     }
 }
