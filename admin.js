@@ -465,17 +465,33 @@ jQuery(document).ready(function($) {
                 $button.text(originalButtonText);
                 $button.prop('disabled', false);
 
-                try {
-                    if (response.success) {
-                        // Show detailed H1 analysis modal instead of just refreshing
+                                                try {
+                    console.log('Processing response - success:', response.success, 'has stats:', !!response.stats);
+
+                    if (response.success && response.stats) {
+                        // Update the dashboard display with new stats
+                        console.log('Updating H1 display with new stats:', response.stats);
+                        updateH1Display(response.stats);
+
+                        // Show the detailed H1 analysis modal with results
                         console.log('Opening H1 analysis modal...');
-                        window.showH1AnalysisModal();
+                        if (typeof window.showH1AnalysisModal === 'function') {
+                            // Pass the detailed results to the modal
+                            window.showH1AnalysisModal(response.detailed_results || null);
+                        } else {
+                            console.warn('showH1AnalysisModal function not found');
+                            // Show success message as fallback
+                            var successMessage = response.message || 'H1 analysis completed successfully';
+                            showNotification(successMessage, 'success');
+                        }
                     } else {
+                        console.error('Response validation failed:', response);
                         var errorMessage = response.message || (response.data && response.data.message) || 'Unknown error';
                         alert('Error: ' + errorMessage);
                     }
                 } catch (e) {
                     console.error('Error in H1 refresh success handler:', e);
+                    console.error('Response that caused error:', response);
                     alert('An error occurred while processing the response. Check console for details.');
                 }
             },
@@ -490,6 +506,87 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    // Helper function to update H1 display on dashboard
+    function updateH1Display(stats) {
+        var $h1Section = $('.seo-stat-item').filter(function() {
+            return $(this).find('h4').text().trim() === 'H1 Headings';
+        });
+
+        if ($h1Section.length === 0) {
+            console.error('H1 section not found on dashboard');
+            return;
+        }
+
+        // Determine status class and text
+        var statusClass = '';
+        var statusText = '';
+        if (stats.percentage >= 100) {
+            statusClass = 'status-good';
+            statusText = 'All Correct';
+        } else if (stats.percentage >= 80) {
+            statusClass = 'status-warning';
+            statusText = 'Nearly Complete';
+        } else {
+            statusClass = 'status-error';
+            statusText = 'Issues Found';
+        }
+
+        // Update status class on the main container
+        $h1Section.removeClass('status-good status-warning status-error').addClass(statusClass);
+
+        // Update status text
+        $h1Section.find('.stat-status').removeClass('status-good status-warning status-error').addClass(statusClass).text(statusText);
+
+        // Update statistics
+        $h1Section.find('.stat-number').text(stats.correct + '/' + stats.total);
+        $h1Section.find('.stat-label').text(Math.round(stats.percentage * 10) / 10 + '% correct');
+
+        // Update action buttons
+        var $actionDiv = $h1Section.find('.stat-action');
+        var refreshButton = '<button id="refresh-h1-analysis" class="button button-small" style="margin-bottom: 5px;">🔄 Refresh</button>';
+
+        var issueButtons = '';
+        if (stats.issues > 0) {
+            var adminUrl = (typeof meta_description_boy_data !== 'undefined' && meta_description_boy_data.admin_url)
+                ? meta_description_boy_data.admin_url
+                : '/wp-admin/';
+
+            if (stats.no_h1 > 0) {
+                issueButtons += '<a href="' + adminUrl + 'edit.php?h1_missing=1" class="button button-small" style="margin-left: 2px;">No H1 (' + stats.no_h1 + ')</a>';
+            }
+            if (stats.multiple_h1 > 0) {
+                issueButtons += '<a href="' + adminUrl + 'edit.php?h1_multiple=1" class="button button-small" style="margin-left: 2px;">Multiple H1 (' + stats.multiple_h1 + ')</a>';
+            }
+        }
+
+        $actionDiv.html(refreshButton + issueButtons);
+    }
+
+    // Helper function to show notifications
+    function showNotification(message, type) {
+        type = type || 'info';
+
+        // Create notification element
+        var $notification = $('<div class="notice notice-' + type + ' is-dismissible"><p>' + message + '</p></div>');
+
+        // Add to top of page
+        $('.wrap h1').first().after($notification);
+
+        // Auto-remove after 5 seconds
+        setTimeout(function() {
+            $notification.fadeOut(300, function() {
+                $(this).remove();
+            });
+        }, 5000);
+
+        // Make it dismissible
+        $notification.on('click', '.notice-dismiss', function() {
+            $notification.fadeOut(300, function() {
+                $(this).remove();
+            });
+        });
+    }
 
     // Bulk Alt Text Generation Variables
     var bulkProcessing = false;
@@ -670,8 +767,8 @@ jQuery(document).ready(function($) {
     }
 
     // H1 Analysis Modal Functions
-    window.showH1AnalysisModal = function() {
-        console.log('showH1AnalysisModal called - NEW VERSION');
+    window.showH1AnalysisModal = function(detailedResults) {
+        console.log('showH1AnalysisModal called - NEW VERSION', detailedResults ? 'with pre-calculated results' : 'without results');
 
         // Create modal HTML if it doesn't exist
         if (!$('#h1-analysis-modal').length) {
@@ -716,12 +813,66 @@ jQuery(document).ready(function($) {
         // Show modal and start analysis
         console.log('Showing modal...');
         $('#h1-analysis-modal').show();
-        $('#h1-analysis-progress').show();
-        $('#h1-analysis-results').hide();
-        console.log('Modal should be visible now');
 
-        startH1Analysis();
+        if (detailedResults) {
+            // Use pre-calculated results
+            console.log('Using pre-calculated results');
+            $('#h1-analysis-progress').hide();
+            $('#h1-analysis-results').show();
+            displayH1Results(detailedResults);
+        } else {
+            // Run analysis (legacy behavior)
+            console.log('Running fresh analysis');
+            $('#h1-analysis-progress').show();
+            $('#h1-analysis-results').hide();
+            startH1Analysis();
+        }
+
+        console.log('Modal should be visible now');
     };
+
+    function displayH1Results(detailedResults) {
+        console.log('displayH1Results called with', detailedResults.length, 'results');
+
+        var $resultsDiv = $('#h1-analysis-results');
+        var $tbody = $('#h1-results-tbody');
+        var $summary = $('.h1-summary');
+
+        // Clear existing results
+        $tbody.empty();
+
+        var results = {
+            correct: 0,
+            no_h1: 0,
+            multiple_h1: 0,
+            total: detailedResults.length
+        };
+
+        // Process each result and add to table
+        detailedResults.forEach(function(result) {
+            // Count for summary
+            if (result.h1_count === 0) {
+                results.no_h1++;
+            } else if (result.h1_count === 1) {
+                results.correct++;
+            } else {
+                results.multiple_h1++;
+            }
+
+            // Add row to table
+            var row = '<tr>' +
+                '<td>' + result.id + '</td>' +
+                '<td><strong>' + result.title + '</strong></td>' +
+                '<td>' + result.h1_count + '</td>' +
+                '<td class="' + result.status_class + '">' + result.status + '</td>' +
+                '<td><a href="' + result.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+            '</tr>';
+            $tbody.append(row);
+        });
+
+        // Show results using the same function as the progressive analysis
+        showH1Results(results);
+    }
 
     function startH1Analysis() {
         console.log('startH1Analysis called');

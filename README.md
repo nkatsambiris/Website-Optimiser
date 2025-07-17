@@ -15,6 +15,9 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 1.9.1 Changes
+- FIX: Resolve issue with h1 heading analysis
+
 ## Version 1.9.0 Changes
 - NEW: Added new module for checking navigation font sizes
 

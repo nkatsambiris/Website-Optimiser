@@ -1169,9 +1169,3 @@ add_action('untrash_post', 'meta_description_boy_clear_featured_image_cache');
 add_action('updated_post_meta', 'meta_description_boy_clear_featured_image_cache_on_thumbnail_update', 10, 4);
 add_action('added_post_meta', 'meta_description_boy_clear_featured_image_cache_on_thumbnail_update', 10, 4);
 add_action('admin_notices', 'meta_description_boy_filtered_view_notices');
-
-// Clear H1 cache to ensure updated filtering takes effect
-meta_description_boy_force_clear_h1_cache();
-
-// Clear featured image cache to ensure updated filtering takes effect
-meta_description_boy_force_clear_featured_image_cache();
