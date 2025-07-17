@@ -29,6 +29,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/managewp.php';
 require_once plugin_dir_path(__FILE__) . 'includes/updraftplus.php';
 require_once plugin_dir_path(__FILE__) . 'includes/custom-404-page.php';
 require_once plugin_dir_path(__FILE__) . 'includes/clickable-links.php';
+require_once plugin_dir_path(__FILE__) . 'includes/navigation-font-size.php';
 require_once plugin_dir_path(__FILE__) . 'includes/uptime-monitoring.php';
 require_once plugin_dir_path(__FILE__) . 'includes/favicon.php';
 require_once plugin_dir_path(__FILE__) . 'includes/wp-debug.php';
@@ -169,6 +170,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_updraftplus_section();
         meta_description_boy_render_custom_404_section();
         meta_description_boy_render_clickable_links_section();
+        meta_description_boy_render_navigation_font_size_section();
         meta_description_boy_render_uptime_monitoring_section();
         meta_description_boy_render_favicon_section();
         meta_description_boy_render_wp_debug_section();
@@ -292,6 +294,9 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('meta_description_boy_check_clickable_links_status')) {
         $statuses[] = meta_description_boy_check_clickable_links_status();
+    }
+    if (function_exists('meta_description_boy_check_navigation_font_size_status')) {
+        $statuses[] = meta_description_boy_check_navigation_font_size_status();
     }
     if (function_exists('meta_description_boy_check_uptime_monitoring_status')) {
         $statuses[] = meta_description_boy_check_uptime_monitoring_status();

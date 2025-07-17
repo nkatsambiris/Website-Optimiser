@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.8.0
+* Version: 1.9.0
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
