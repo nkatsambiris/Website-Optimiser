@@ -203,11 +203,11 @@ function meta_description_boy_analyze_h1_from_content($post_id) {
 /**
  * Analyze H1 count from frontend (accurate version)
  */
-function meta_description_boy_analyze_h1_frontend($post_id) {
-    // Check if caching is enabled
+function meta_description_boy_analyze_h1_frontend($post_id, $return_details = false) {
+    // Check if caching is enabled (but skip cache if we need details)
     $enable_caching = get_option('meta_description_boy_enable_caching', 1);
 
-    if ($enable_caching) {
+    if ($enable_caching && !$return_details) {
         // First check if we have a cached result for this specific post
         $post_cache_key = 'meta_description_boy_h1_frontend_' . $post_id;
         $cached_count = get_transient($post_cache_key);
@@ -219,20 +219,89 @@ function meta_description_boy_analyze_h1_frontend($post_id) {
 
     // Get the actual rendered content by doing a frontend request
     $post_url = get_permalink($post_id);
-    $response = wp_remote_get($post_url, array(
+    
+    // Prepare request arguments with authentication bypass for password-protected sites
+    $request_args = array(
         'timeout' => 30,
         'user-agent' => 'Mozilla/5.0 (compatible; WordPress H1 Checker)',
         'headers' => array(
             'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        )
-    ));
+        ),
+        'sslverify' => false, // For local dev environments
+        'cookies' => array() // Will be populated below
+    );
+    
+    // Try to pass authentication cookies for password-protected sites
+    foreach ($_COOKIE as $name => $value) {
+        // Pass WordPress auth cookies and other relevant cookies
+        if (strpos($name, 'wordpress') === 0 || strpos($name, 'wp-') === 0) {
+            $request_args['cookies'][] = new WP_Http_Cookie(array(
+                'name' => $name,
+                'value' => $value
+            ));
+        }
+    }
+    
+    // Add HTTP Basic Auth credentials if available in wp-config
+    if (defined('WP_HTTP_BLOCK_EXTERNAL') && !WP_HTTP_BLOCK_EXTERNAL) {
+        // Site allows external requests, good to go
+    }
+    
+    // Check if HTTP authentication is needed (common on staging sites)
+    if (isset($_SERVER['PHP_AUTH_USER']) && isset($_SERVER['PHP_AUTH_PW'])) {
+        $request_args['headers']['Authorization'] = 'Basic ' . base64_encode($_SERVER['PHP_AUTH_USER'] . ':' . $_SERVER['PHP_AUTH_PW']);
+    }
+    
+    // Check for stored HTTP authentication credentials (for password-protected sites)
+    $http_auth_user = get_option('meta_description_boy_http_auth_user', '');
+    $http_auth_pass = get_option('meta_description_boy_http_auth_pass', '');
+    if (!empty($http_auth_user) && !empty($http_auth_pass)) {
+        $request_args['headers']['Authorization'] = 'Basic ' . base64_encode($http_auth_user . ':' . $http_auth_pass);
+    }
+    
+    // Check for wp-config.php defined credentials
+    if (defined('WP_H1_CHECKER_AUTH_USER') && defined('WP_H1_CHECKER_AUTH_PASS')) {
+        $request_args['headers']['Authorization'] = 'Basic ' . base64_encode(WP_H1_CHECKER_AUTH_USER . ':' . WP_H1_CHECKER_AUTH_PASS);
+    }
+    
+    $response = wp_remote_get($post_url, $request_args);
 
-    if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+    $response_code = is_wp_error($response) ? 0 : wp_remote_retrieve_response_code($response);
+    
+    if (is_wp_error($response) || $response_code !== 200) {
         // Log the fallback for debugging
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            $error_msg = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response);
+            $error_msg = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . $response_code;
             error_log('H1 Frontend Analysis Fallback for Post ID ' . $post_id . ': ' . $error_msg . ' - URL: ' . $post_url);
         }
+        
+        // If returning details, try content-based analysis and note the issue
+        if ($return_details) {
+            $content_based_count = meta_description_boy_analyze_h1_from_content($post_id);
+            $error_msg = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . $response_code;
+            
+            // Provide helpful error message for common issues
+            $help_text = '';
+            if ($response_code == 401) {
+                $help_text = 'Site is password protected. Add HTTP authentication credentials to wp-config.php or disable password protection temporarily for accurate H1 analysis.';
+            } elseif ($response_code == 403) {
+                $help_text = 'Access forbidden. Check firewall or security plugin settings.';
+            } elseif ($response_code == 404) {
+                $help_text = 'Page not found. The post may be unpublished or URL structure changed.';
+            }
+            
+            return array(
+                'h1_count' => $content_based_count,
+                'h1_tags' => array(),
+                'error' => 'Frontend request failed - using fallback analysis',
+                'error_details' => $error_msg,
+                'help_text' => $help_text,
+                'fallback_used' => true,
+                'post_url' => $post_url,
+                'response_code' => $response_code
+            );
+        }
+        
         // Fallback to content field method if frontend request fails
         return meta_description_boy_analyze_h1_from_content($post_id);
     }
@@ -244,27 +313,62 @@ function meta_description_boy_analyze_h1_frontend($post_id) {
     preg_match_all('/<h1[^>]*>(.*?)<\/h1>/is', $content, $h1_matches);
 
     $h1_count = 0;
+    $h1_details = array();
+    
     // Filter out Gutenberg editor elements and empty H1s
     foreach ($h1_matches[0] as $index => $h1_tag) {
-        // Skip if it's a Gutenberg editor element
-        if (preg_match('/contenteditable=["\'"]true["\'"]/', $h1_tag) ||
+        $h1_inner_html = $h1_matches[1][$index];
+        $h1_text_content = trim(strip_tags($h1_inner_html));
+        
+        // Check if it's a Gutenberg editor element
+        $is_editor = (
+            preg_match('/contenteditable=["\'"]true["\'"]/', $h1_tag) ||
             preg_match('/class=["\'][^"\']*(?:block-editor|editor-post-title)[^"\']*["\']/', $h1_tag) ||
-            preg_match('/role=["\'"]textbox["\']/', $h1_tag)) {
+            preg_match('/role=["\'"]textbox["\']/', $h1_tag)
+        );
+        
+        $is_empty = empty($h1_text_content);
+        $is_valid = !$is_editor && !$is_empty;
+        
+        // Store details if requested
+        if ($return_details) {
+            $h1_details[] = array(
+                'full_tag' => $h1_tag,
+                'inner_html' => $h1_inner_html,
+                'text_content' => $h1_text_content,
+                'is_editor_element' => $is_editor,
+                'is_empty' => $is_empty,
+                'is_valid' => $is_valid
+            );
+        }
+
+        // Skip if it's a Gutenberg editor element
+        if ($is_editor) {
             continue;
         }
 
         // Skip if H1 content is empty or just whitespace
-        $h1_content = trim(strip_tags($h1_matches[1][$index]));
-        if (empty($h1_content)) {
+        if ($is_empty) {
             continue;
         }
 
         $h1_count++;
     }
 
-    // Cache individual post result if caching is enabled
-    if ($enable_caching) {
+    // Cache individual post result if caching is enabled (only cache the count)
+    if ($enable_caching && !$return_details) {
         set_transient($post_cache_key, $h1_count, HOUR_IN_SECONDS);
+    }
+
+    // Return details if requested
+    if ($return_details) {
+        return array(
+            'h1_count' => $h1_count,
+            'h1_tags' => $h1_details,
+            'total_h1_found' => count($h1_matches[0]),
+            'post_url' => $post_url,
+            'response_code' => wp_remote_retrieve_response_code($response)
+        );
     }
 
     return $h1_count;
@@ -599,6 +703,40 @@ function meta_description_boy_analyze_single_post_h1() {
     )));
 }
 add_action('wp_ajax_meta_description_boy_analyze_single_post_h1', 'meta_description_boy_analyze_single_post_h1');
+
+/**
+ * Get detailed H1 debug information for a single post
+ */
+function meta_description_boy_debug_post_h1() {
+    // Check nonce and permissions
+    if (!check_ajax_referer('meta_description_boy_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        wp_die(json_encode(array('success' => false, 'message' => 'Unauthorized')));
+    }
+
+    $post_id = intval($_POST['post_id']);
+
+    if (!$post_id) {
+        wp_die(json_encode(array('success' => false, 'message' => 'Invalid post ID')));
+    }
+
+    // Get detailed H1 analysis
+    $h1_details = meta_description_boy_analyze_h1_frontend($post_id, true);
+
+    // Add post information
+    $debug_data = array(
+        'post_id' => $post_id,
+        'post_title' => get_the_title($post_id),
+        'post_url' => get_permalink($post_id),
+        'edit_url' => get_edit_post_link($post_id),
+        'h1_analysis' => $h1_details
+    );
+
+    wp_die(json_encode(array(
+        'success' => true,
+        'data' => $debug_data
+    )));
+}
+add_action('wp_ajax_meta_description_boy_debug_post_h1', 'meta_description_boy_debug_post_h1');
 
 // Note: Cache is now only cleared when user clicks refresh button
 // This prevents slow dashboard loads

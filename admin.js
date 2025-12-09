@@ -859,13 +859,17 @@ jQuery(document).ready(function($) {
                 results.multiple_h1++;
             }
 
-            // Add row to table
+            // Add row to table with debug button for multiple H1s
+            var debugButton = '';
+            if (result.h1_count !== 1) {
+                debugButton = ' <button class="button button-small h1-debug-btn" data-post-id="' + result.id + '">🐛 Debug</button>';
+            }
             var row = '<tr>' +
                 '<td>' + result.id + '</td>' +
                 '<td><strong>' + result.title + '</strong></td>' +
                 '<td>' + result.h1_count + '</td>' +
                 '<td class="' + result.status_class + '">' + result.status + '</td>' +
-                '<td><a href="' + result.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                '<td><a href="' + result.edit_url + '" target="_blank" class="button button-small">Edit</a>' + debugButton + '</td>' +
             '</tr>';
             $tbody.append(row);
         });
@@ -1009,12 +1013,17 @@ jQuery(document).ready(function($) {
                                     }
 
                                     // Add row to table
+                                    // Add debug button for issues
+                                    var debugButton = '';
+                                    if (h1Count !== 1) {
+                                        debugButton = ' <button class="button button-small h1-debug-btn" data-post-id="' + post.id + '">🐛 Debug</button>';
+                                    }
                                     var row = '<tr>' +
                                         '<td>' + post.id + '</td>' +
                                         '<td><strong>' + post.title + '</strong></td>' +
                                         '<td>' + h1Count + '</td>' +
                                         '<td class="' + statusClass + '">' + status + '</td>' +
-                                        '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                                        '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a>' + debugButton + '</td>' +
                                     '</tr>';
                                     $tbody.append(row);
                                 } else {
@@ -1127,6 +1136,7 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.h1-modal-close, .h1-modal-overlay', function(e) {
         if (e.target === this) {
             $('#h1-analysis-modal').hide();
+            $('#h1-debug-modal').hide();
         }
     });
 
@@ -1134,4 +1144,180 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.h1-modal-content', function(e) {
         e.stopPropagation();
     });
+
+    // Handle H1 Debug button click
+    $(document).on('click', '.h1-debug-btn', function(e) {
+        e.preventDefault();
+        var postId = $(this).data('post-id');
+        showH1DebugModal(postId);
+    });
+
+    // Show H1 Debug Modal
+    function showH1DebugModal(postId) {
+        console.log('showH1DebugModal called for post ID:', postId);
+
+        // Create modal HTML if it doesn't exist
+        if (!$('#h1-debug-modal').length) {
+            var debugModalHTML = '<div id="h1-debug-modal" class="h1-modal-overlay" style="display: none;">' +
+                '<div class="h1-modal-content" style="max-width: 900px;">' +
+                    '<div class="h1-modal-header">' +
+                        '<h2>H1 Debug Information</h2>' +
+                        '<span class="h1-modal-close">&times;</span>' +
+                    '</div>' +
+                    '<div class="h1-modal-body" id="h1-debug-body">' +
+                        '<div class="h1-debug-loading" style="text-align: center; padding: 40px;">' +
+                            '<span class="spinner is-active" style="float: none; margin: 0 auto;"></span>' +
+                            '<p>Loading debug information...</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+            $('body').append(debugModalHTML);
+        }
+
+        // Show modal
+        $('#h1-debug-modal').show();
+
+        // Fetch debug data
+        $.ajax({
+            type: 'POST',
+            url: meta_description_boy_data.ajax_url,
+            data: {
+                action: 'meta_description_boy_debug_post_h1',
+                nonce: meta_description_boy_data.nonce,
+                post_id: postId
+            },
+            success: function(response) {
+                console.log('Debug response:', response);
+
+                if (typeof response === 'string') {
+                    try {
+                        response = JSON.parse(response);
+                    } catch (e) {
+                        console.error('Failed to parse debug response:', e);
+                        $('#h1-debug-body').html('<div class="notice notice-error"><p>Error parsing response</p></div>');
+                        return;
+                    }
+                }
+
+                if (response.success && response.data) {
+                    displayH1DebugInfo(response.data);
+                } else {
+                    $('#h1-debug-body').html('<div class="notice notice-error"><p>Error loading debug information</p></div>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Debug AJAX error:', error);
+                $('#h1-debug-body').html('<div class="notice notice-error"><p>Network error: ' + error + '</p></div>');
+            }
+        });
+    }
+
+    // Display H1 Debug Information
+    function displayH1DebugInfo(data) {
+        console.log('Displaying debug info:', data);
+
+        var html = '<div class="h1-debug-info">';
+        
+        // Post information
+        html += '<div class="debug-section">';
+        html += '<h3>Post Information</h3>';
+        html += '<table class="widefat">';
+        html += '<tr><th>Post ID:</th><td>' + data.post_id + '</td></tr>';
+        html += '<tr><th>Post Title:</th><td>' + data.post_title + '</td></tr>';
+        html += '<tr><th>Post URL:</th><td><a href="' + data.post_url + '" target="_blank">' + data.post_url + '</a></td></tr>';
+        html += '<tr><th>Edit URL:</th><td><a href="' + data.edit_url + '" target="_blank">Edit Post</a></td></tr>';
+        html += '</table>';
+        html += '</div>';
+
+        var analysis = data.h1_analysis;
+
+        // Analysis summary with error handling
+        html += '<div class="debug-section">';
+        html += '<h3>Analysis Summary</h3>';
+        
+        // Show warning banner if there was an error
+        if (analysis.error) {
+            html += '<div class="notice notice-warning" style="margin-bottom: 15px; padding: 12px; border-left: 4px solid #ffb900;">';
+            html += '<p style="margin: 0 0 8px 0;"><strong>⚠️ ' + analysis.error + '</strong></p>';
+            if (analysis.help_text) {
+                html += '<p style="margin: 0; font-size: 13px;">' + analysis.help_text + '</p>';
+            }
+            if (analysis.fallback_used) {
+                html += '<p style="margin: 8px 0 0 0; font-size: 13px;"><em>Note: Using content-based analysis (less accurate). H1 count shown is an estimate.</em></p>';
+            }
+            html += '</div>';
+        }
+        
+        html += '<table class="widefat">';
+        html += '<tr><th>Valid H1 Count:</th><td><strong>' + analysis.h1_count + '</strong>' + (analysis.fallback_used ? ' <span style="color: #ffb900;">(estimated)</span>' : '') + '</td></tr>';
+        html += '<tr><th>Total H1 Tags Found:</th><td>' + (analysis.total_h1_found !== undefined ? analysis.total_h1_found : 'N/A') + '</td></tr>';
+        html += '<tr><th>Response Code:</th><td>' + (analysis.response_code !== undefined ? analysis.response_code : 'N/A') + '</td></tr>';
+        if (analysis.error_details) {
+            html += '<tr><th>Error Details:</th><td style="color: #dc3232; font-family: monospace; font-size: 12px;">' + analysis.error_details + '</td></tr>';
+        }
+        html += '</table>';
+        html += '</div>';
+
+        // Detailed H1 tags
+        if (analysis.h1_tags && analysis.h1_tags.length > 0) {
+            html += '<div class="debug-section">';
+            html += '<h3>Detected H1 Tags (' + analysis.h1_tags.length + ' total)</h3>';
+            html += '<div style="max-height: 400px; overflow-y: auto;">';
+
+            analysis.h1_tags.forEach(function(h1, index) {
+                var statusBadge = h1.is_valid ? 
+                    '<span style="background: #46b450; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px;">VALID</span>' :
+                    '<span style="background: #dc3232; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px;">IGNORED</span>';
+
+                html += '<div class="h1-tag-detail" style="background: ' + (h1.is_valid ? '#f0f9ff' : '#fff3cd') + '; border: 1px solid ' + (h1.is_valid ? '#0073aa' : '#ffb900') + '; padding: 15px; margin-bottom: 15px; border-radius: 4px;">';
+                html += '<h4 style="margin-top: 0;">H1 Tag #' + (index + 1) + ' ' + statusBadge + '</h4>';
+                
+                html += '<table class="widefat" style="margin-bottom: 10px;">';
+                html += '<tr><th style="width: 150px;">Text Content:</th><td><strong>' + (h1.text_content || '<em>(empty)</em>') + '</strong></td></tr>';
+                html += '<tr><th>Is Valid:</th><td>' + (h1.is_valid ? '✅ Yes' : '❌ No') + '</td></tr>';
+                html += '<tr><th>Is Empty:</th><td>' + (h1.is_empty ? '⚠️ Yes' : '✅ No') + '</td></tr>';
+                html += '<tr><th>Is Editor Element:</th><td>' + (h1.is_editor_element ? '⚠️ Yes' : '✅ No') + '</td></tr>';
+                html += '</table>';
+
+                html += '<details style="margin-top: 10px;">';
+                html += '<summary style="cursor: pointer; font-weight: bold; margin-bottom: 5px;">View Full HTML Tag</summary>';
+                html += '<pre style="background: #f5f5f5; padding: 10px; overflow-x: auto; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">' + escapeHtml(h1.full_tag) + '</pre>';
+                html += '</details>';
+
+                if (h1.inner_html !== h1.text_content) {
+                    html += '<details style="margin-top: 10px;">';
+                    html += '<summary style="cursor: pointer; font-weight: bold; margin-bottom: 5px;">View Inner HTML</summary>';
+                    html += '<pre style="background: #f5f5f5; padding: 10px; overflow-x: auto; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">' + escapeHtml(h1.inner_html) + '</pre>';
+                    html += '</details>';
+                }
+
+                html += '</div>';
+            });
+
+            html += '</div>';
+            html += '</div>';
+        } else {
+            html += '<div class="debug-section">';
+            html += '<h3>No H1 Tags Found</h3>';
+            html += '<p>No H1 tags were detected on this page.</p>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+
+        $('#h1-debug-body').html(html);
+    }
+
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        var map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
 });

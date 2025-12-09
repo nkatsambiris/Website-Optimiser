@@ -15,6 +15,9 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 1.9.4 Changes
+- FIX: Resolve issue with H1 Heading check if website is password protected
+
 ## Version 1.9.3 Changes
 - NEW: Module added to confirm hover states on buttons, links and cards
 

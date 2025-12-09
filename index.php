@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.9.3
+* Version: 1.9.4
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -324,6 +324,8 @@ function meta_description_boy_admin_init() {
     register_setting('meta_description_boy_options', 'meta_description_boy_auto_alt_text');
     register_setting('meta_description_boy_options', 'meta_description_boy_enable_caching');
     register_setting('meta_description_boy_options', 'meta_description_boy_cache_duration');
+    register_setting('meta_description_boy_options', 'meta_description_boy_http_auth_user');
+    register_setting('meta_description_boy_options', 'meta_description_boy_http_auth_pass');
 
     // Settings sections & fields
     add_settings_section('meta_description_boy_api_settings', 'API Settings', null, 'meta-description-boy');
@@ -335,6 +337,7 @@ function meta_description_boy_admin_init() {
     add_settings_field('meta_description_boy_debug_field', 'Enable Debug Output', 'meta_description_boy_debug_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
     add_settings_field('meta_description_boy_auto_alt_text_field', 'Auto-Generate Alt Text', 'meta_description_boy_auto_alt_text_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
     add_settings_field('meta_description_boy_caching_field', 'Performance Settings', 'meta_description_boy_caching_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
+    add_settings_field('meta_description_boy_http_auth_field', 'HTTP Authentication (Password Protected Sites)', 'meta_description_boy_http_auth_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
 }
 add_action('admin_init', 'meta_description_boy_admin_init');
 
@@ -461,6 +464,38 @@ function meta_description_boy_caching_field_cb() {
     });
     </script>
     <?php
+}
+
+function meta_description_boy_http_auth_field_cb() {
+    $http_auth_user = get_option('meta_description_boy_http_auth_user', '');
+    $http_auth_pass = get_option('meta_description_boy_http_auth_pass', '');
+    
+    echo "<div style='background: #fff3cd; border-left: 4px solid #ffb900; padding: 15px; margin-bottom: 20px;'>";
+    echo "<p style='margin: 0 0 10px 0;'><strong>⚠️ Password Protected Site Detected</strong></p>";
+    echo "<p style='margin: 0; font-size: 13px;'>Your site appears to be password protected (HTTP 401 error). ";
+    echo "To allow accurate H1 analysis, provide your HTTP authentication credentials below.</p>";
+    echo "</div>";
+    
+    echo "<div style='margin-bottom: 15px;'>";
+    echo "<label for='http_auth_user' style='display: block; font-weight: bold; margin-bottom: 5px;'>HTTP Auth Username:</label>";
+    echo "<input type='text' name='meta_description_boy_http_auth_user' id='http_auth_user' value='" . esc_attr($http_auth_user) . "' style='width: 300px;' />";
+    echo "<p class='description'>Username for HTTP Basic Authentication</p>";
+    echo "</div>";
+    
+    echo "<div style='margin-bottom: 15px;'>";
+    echo "<label for='http_auth_pass' style='display: block; font-weight: bold; margin-bottom: 5px;'>HTTP Auth Password:</label>";
+    echo "<input type='password' name='meta_description_boy_http_auth_pass' id='http_auth_pass' value='" . esc_attr($http_auth_pass) . "' style='width: 300px;' />";
+    echo "<p class='description'>Password for HTTP Basic Authentication</p>";
+    echo "</div>";
+    
+    echo "<div style='background: #e7f4f9; border-left: 4px solid #0073aa; padding: 15px; margin-top: 15px;'>";
+    echo "<p style='margin: 0 0 10px 0;'><strong>💡 Alternative Method (wp-config.php)</strong></p>";
+    echo "<p style='margin: 0 0 5px 0; font-size: 13px;'>You can also add these constants to your wp-config.php file:</p>";
+    echo "<pre style='background: #f5f5f5; padding: 10px; border: 1px solid #ddd; border-radius: 3px; font-size: 12px; overflow-x: auto;'>";
+    echo "define('WP_H1_CHECKER_AUTH_USER', 'your_username');\n";
+    echo "define('WP_H1_CHECKER_AUTH_PASS', 'your_password');</pre>";
+    echo "<p style='margin: 5px 0 0 0; font-size: 13px;'><em>This method is more secure as credentials won't be stored in the database.</em></p>";
+    echo "</div>";
 }
 
 function meta_description_boy_instruction_text_field_cb() {
