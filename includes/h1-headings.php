@@ -18,6 +18,25 @@ function meta_description_boy_get_h1_excluded_ids() {
 }
 
 /**
+ * Get saved detailed H1 results if available
+ */
+function meta_description_boy_get_saved_h1_results() {
+    $stored = get_option('meta_description_boy_h1_detailed_results', array());
+
+    if (!is_array($stored) || empty($stored['results']) || !is_array($stored['results'])) {
+        return array(
+            'generated_at' => null,
+            'results' => array()
+        );
+    }
+
+    return array(
+        'generated_at' => isset($stored['generated_at']) ? intval($stored['generated_at']) : null,
+        'results' => $stored['results']
+    );
+}
+
+/**
  * Get H1 heading statistics with caching (dashboard display version)
  */
 function meta_description_boy_get_h1_stats() {
@@ -401,6 +420,7 @@ function meta_description_boy_analyze_h1_frontend($post_id, $return_details = fa
 function meta_description_boy_clear_h1_cache($post_id = null) {
     // Clear the main stats data
     delete_option('meta_description_boy_h1_stats_data');
+    delete_option('meta_description_boy_h1_detailed_results');
 
     // If specific post ID provided, clear its individual cache (these can stay as transients for performance)
     if ($post_id) {
@@ -414,6 +434,7 @@ function meta_description_boy_clear_h1_cache($post_id = null) {
  */
 function meta_description_boy_force_clear_h1_cache() {
     delete_option('meta_description_boy_h1_stats_data');
+    delete_option('meta_description_boy_h1_detailed_results');
 
     // Clear individual post caches for selected post types
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
@@ -435,6 +456,8 @@ function meta_description_boy_force_clear_h1_cache() {
  */
 function meta_description_boy_render_h1_headings_section() {
     $h1_stats = meta_description_boy_get_h1_stats();
+    $saved_h1_results = meta_description_boy_get_saved_h1_results();
+    $has_saved_results = !empty($saved_h1_results['results']);
 
     // Check if analysis needs to be run
     if (isset($h1_stats['needs_refresh']) && $h1_stats['needs_refresh']) {
@@ -484,6 +507,11 @@ function meta_description_boy_render_h1_headings_section() {
                 <button id="refresh-h1-analysis" class="button button-small" style="margin-bottom: 5px;">
                     🔄 Refresh
                 </button>
+                <?php if ($has_saved_results): ?>
+                    <button id="view-h1-analysis" class="button button-small" style="margin-left: 2px;">
+                        📄 View Last Analysis
+                    </button>
+                <?php endif; ?>
                 <?php if ($h1_stats['issues'] > 0): ?>
                     <?php if ($h1_stats['no_h1'] > 0): ?>
                     <a href="<?php echo admin_url('edit.php?h1_missing=1'); ?>" class="button button-small" style="margin-left: 2px;">
@@ -608,6 +636,10 @@ function meta_description_boy_refresh_h1_analysis() {
 
     // Also get detailed post-by-post results for the modal
     $detailed_results = meta_description_boy_get_detailed_h1_results();
+    update_option('meta_description_boy_h1_detailed_results', array(
+        'generated_at' => time(),
+        'results' => $detailed_results
+    ));
 
     wp_die(json_encode(array(
         'success' => true,
@@ -617,6 +649,24 @@ function meta_description_boy_refresh_h1_analysis() {
     )));
 }
 add_action('wp_ajax_meta_description_boy_refresh_h1_analysis', 'meta_description_boy_refresh_h1_analysis');
+
+/**
+ * Get saved H1 analysis results
+ */
+function meta_description_boy_get_saved_h1_analysis() {
+    // Check nonce and permissions
+    if (!check_ajax_referer('meta_description_boy_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        wp_die(json_encode(array('success' => false, 'message' => 'Unauthorized')));
+    }
+
+    $saved = meta_description_boy_get_saved_h1_results();
+
+    wp_die(json_encode(array(
+        'success' => true,
+        'data' => $saved
+    )));
+}
+add_action('wp_ajax_meta_description_boy_get_saved_h1_analysis', 'meta_description_boy_get_saved_h1_analysis');
 
 /**
  * Get detailed H1 results for modal display

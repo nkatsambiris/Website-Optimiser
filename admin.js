@@ -507,6 +507,58 @@ jQuery(document).ready(function($) {
         });
     });
 
+    // Handle H1 analysis view button
+    $(document).on('click', '#view-h1-analysis', function(e) {
+        e.preventDefault();
+
+        // Check if meta_description_boy_data is available
+        if (typeof meta_description_boy_data === 'undefined') {
+            console.error('meta_description_boy_data is not defined');
+            alert('Script configuration error. Please refresh the page and try again.');
+            return;
+        }
+
+        $.ajax({
+            type: 'POST',
+            url: meta_description_boy_data.ajax_url,
+            data: {
+                action: 'meta_description_boy_get_saved_h1_analysis',
+                nonce: meta_description_boy_data.nonce
+            },
+            success: function(response) {
+                if (typeof response === 'string') {
+                    try {
+                        response = JSON.parse(response);
+                    } catch (e) {
+                        alert('Invalid response from server');
+                        return;
+                    }
+                }
+
+                if (!response.success || !response.data) {
+                    var errorMessage = response.message || (response.data && response.data.message) || 'No saved analysis found.';
+                    alert(errorMessage);
+                    return;
+                }
+
+                var results = response.data.results || [];
+                if (!results.length) {
+                    alert('No saved analysis found. Please run the analysis first.');
+                    return;
+                }
+
+                if (typeof window.showH1AnalysisModal === 'function') {
+                    window.showH1AnalysisModal(results);
+                } else {
+                    alert('Unable to open analysis modal. Please refresh the page.');
+                }
+            },
+            error: function() {
+                alert('Network error occurred. Please try again.');
+            }
+        });
+    });
+
     // Helper function to update H1 display on dashboard
     function updateH1Display(stats) {
         var $h1Section = $('.seo-stat-item').filter(function() {
@@ -545,6 +597,7 @@ jQuery(document).ready(function($) {
         // Update action buttons
         var $actionDiv = $h1Section.find('.stat-action');
         var refreshButton = '<button id="refresh-h1-analysis" class="button button-small" style="margin-bottom: 5px;">🔄 Refresh</button>';
+        var viewButton = '<button id="view-h1-analysis" class="button button-small" style="margin-left: 2px;">📄 View Last Analysis</button>';
 
         var issueButtons = '';
         if (stats.issues > 0) {
@@ -560,7 +613,7 @@ jQuery(document).ready(function($) {
             }
         }
 
-        $actionDiv.html(refreshButton + issueButtons);
+        $actionDiv.html(refreshButton + viewButton + issueButtons);
     }
 
     // Helper function to show notifications
