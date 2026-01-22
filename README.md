@@ -15,6 +15,10 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 1.9.5 Changes
+- NEW: Exclude pages from H1 check
+- FIX: Improve image alt description for http auth sites
+
 ## Version 1.9.4 Changes
 - FIX: Resolve issue with H1 Heading check if website is password protected
 
