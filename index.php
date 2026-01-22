@@ -771,7 +771,12 @@ function meta_description_boy_handle_alt_text_ajax_request() {
     }
 
     // Get image data
-    $image_data = wp_remote_get($image_url);
+    $image_request_args = array(
+        'timeout' => 30,
+        'headers' => meta_description_boy_get_http_auth_headers(),
+        'sslverify' => false
+    );
+    $image_data = wp_remote_get($image_url, $image_request_args);
     if (is_wp_error($image_data)) {
         wp_send_json_error(array('message' => 'Could not fetch image data'));
     }
@@ -968,7 +973,12 @@ function meta_description_boy_bulk_process_single_image() {
     }
 
     // Get image data
-    $image_data = wp_remote_get($image_url);
+    $image_request_args = array(
+        'timeout' => 30,
+        'headers' => meta_description_boy_get_http_auth_headers(),
+        'sslverify' => false
+    );
+    $image_data = wp_remote_get($image_url, $image_request_args);
     if (is_wp_error($image_data)) {
         wp_send_json_error(array('message' => 'Could not fetch image data: ' . $image_data->get_error_message()));
     }
@@ -1162,7 +1172,12 @@ function meta_description_boy_auto_generate_alt_text($attachment_id) {
     }
 
     // Get image data
-    $image_data = wp_remote_get($image_url);
+    $image_request_args = array(
+        'timeout' => 30,
+        'headers' => meta_description_boy_get_http_auth_headers(),
+        'sslverify' => false
+    );
+    $image_data = wp_remote_get($image_url, $image_request_args);
     if (is_wp_error($image_data)) {
         if ($debug_enabled) {
             error_log('Meta Description Boy: Error fetching image data: ' . $image_data->get_error_message());
@@ -1595,4 +1610,3 @@ function meta_description_boy_upgrader_package_options($options) {
     return $options;
 }
 add_filter('upgrader_package_options', 'meta_description_boy_upgrader_package_options');
-

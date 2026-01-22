@@ -36,6 +36,29 @@ function meta_description_boy_detect_seo_plugins() {
 }
 
 /**
+ * Build HTTP Basic Auth headers for password-protected sites.
+ */
+function meta_description_boy_get_http_auth_headers() {
+    $headers = array();
+
+    if (isset($_SERVER['PHP_AUTH_USER']) && isset($_SERVER['PHP_AUTH_PW'])) {
+        $headers['Authorization'] = 'Basic ' . base64_encode($_SERVER['PHP_AUTH_USER'] . ':' . $_SERVER['PHP_AUTH_PW']);
+    }
+
+    $http_auth_user = get_option('meta_description_boy_http_auth_user', '');
+    $http_auth_pass = get_option('meta_description_boy_http_auth_pass', '');
+    if (!empty($http_auth_user) && !empty($http_auth_pass)) {
+        $headers['Authorization'] = 'Basic ' . base64_encode($http_auth_user . ':' . $http_auth_pass);
+    }
+
+    if (defined('WP_H1_CHECKER_AUTH_USER') && defined('WP_H1_CHECKER_AUTH_PASS')) {
+        $headers['Authorization'] = 'Basic ' . base64_encode(WP_H1_CHECKER_AUTH_USER . ':' . WP_H1_CHECKER_AUTH_PASS);
+    }
+
+    return $headers;
+}
+
+/**
  * Add custom query vars for filtering
  */
 function meta_description_boy_add_query_vars($vars) {
