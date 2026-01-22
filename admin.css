@@ -621,11 +621,52 @@ body.compact-mode .compact-toggle-btn .dashicons-list-view:before {
     font-weight: 600;
 }
 
+.h1-status-excluded {
+    color: #8c8f94;
+    font-weight: 600;
+}
+
+.h1-excluded-row {
+    opacity: 0.6;
+}
+
+.h1-exclude-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #1d2327;
+}
+
+.h1-exclude-disabled {
+    color: #8c8f94;
+    font-size: 12px;
+}
+
 .h1-results-table .button-small {
     padding: 4px 8px;
     font-size: 11px;
     height: auto;
     line-height: 1.4;
+}
+
+.h1-actions {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+}
+
+.h1-actions-status {
+    margin-bottom: 8px;
+    color: #46b450;
+    font-weight: 600;
+}
+
+.h1-exclusion-note {
+    margin: 0 0 15px;
+    color: #646970;
+    font-size: 12px;
 }
 
 /* Responsive adjustments */

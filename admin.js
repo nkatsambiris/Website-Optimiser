@@ -767,6 +767,72 @@ jQuery(document).ready(function($) {
     }
 
     // H1 Analysis Modal Functions
+    var h1DetailedResultsCache = null;
+
+    function calculateH1Summary(results) {
+        var summary = {
+            correct: 0,
+            no_h1: 0,
+            multiple_h1: 0,
+            total: 0
+        };
+
+        if (!results || !results.length) {
+            return summary;
+        }
+
+        results.forEach(function(result) {
+            if (result.is_excluded) {
+                return;
+            }
+
+            summary.total++;
+
+            if (result.h1_count === 0) {
+                summary.no_h1++;
+            } else if (result.h1_count === 1) {
+                summary.correct++;
+            } else if (result.h1_count !== null && result.h1_count !== undefined) {
+                summary.multiple_h1++;
+            }
+        });
+
+        return summary;
+    }
+
+    function calculateH1SummaryFromTable() {
+        var summary = {
+            correct: 0,
+            no_h1: 0,
+            multiple_h1: 0,
+            total: 0
+        };
+
+        $('#h1-results-tbody tr').each(function() {
+            var $row = $(this);
+            var isExcluded = $row.find('.h1-exclude-checkbox').prop('checked');
+            if (isExcluded) {
+                return;
+            }
+
+            var status = $row.data('h1Status');
+            if (!status) {
+                return;
+            }
+
+            summary.total++;
+
+            if (status === 'No H1') {
+                summary.no_h1++;
+            } else if (status === 'Correct') {
+                summary.correct++;
+            } else if (status === 'Multiple H1') {
+                summary.multiple_h1++;
+            }
+        });
+
+        return summary;
+    }
     window.showH1AnalysisModal = function(detailedResults) {
         console.log('showH1AnalysisModal called - NEW VERSION', detailedResults ? 'with pre-calculated results' : 'without results');
 
@@ -796,6 +862,7 @@ jQuery(document).ready(function($) {
                                         '<th>H1 Count</th>' +
                                         '<th>Status</th>' +
                                         '<th>Action</th>' +
+                                        '<th>Exclude</th>' +
                                     '</tr>' +
                                 '</thead>' +
                                 '<tbody id="h1-results-tbody">' +
@@ -823,6 +890,7 @@ jQuery(document).ready(function($) {
         } else {
             // Run analysis (legacy behavior)
             console.log('Running fresh analysis');
+            h1DetailedResultsCache = null;
             $('#h1-analysis-progress').show();
             $('#h1-analysis-results').hide();
             startH1Analysis();
@@ -838,41 +906,34 @@ jQuery(document).ready(function($) {
         var $tbody = $('#h1-results-tbody');
         var $summary = $('.h1-summary');
 
+        h1DetailedResultsCache = detailedResults;
+
         // Clear existing results
         $tbody.empty();
 
-        var results = {
-            correct: 0,
-            no_h1: 0,
-            multiple_h1: 0,
-            total: detailedResults.length
-        };
-
         // Process each result and add to table
         detailedResults.forEach(function(result) {
-            // Count for summary
-            if (result.h1_count === 0) {
-                results.no_h1++;
-            } else if (result.h1_count === 1) {
-                results.correct++;
-            } else {
-                results.multiple_h1++;
-            }
-
             // Add row to table with debug button for multiple H1s
             var debugButton = '';
-            if (result.h1_count !== 1) {
+            if (result.h1_count !== 1 && !result.is_excluded) {
                 debugButton = ' <button class="button button-small h1-debug-btn" data-post-id="' + result.id + '">🐛 Debug</button>';
             }
-            var row = '<tr>' +
+            var h1CountDisplay = (result.h1_count === null || result.h1_count === undefined) ? '-' : result.h1_count;
+            var rowClass = result.is_excluded ? ' class="h1-excluded-row"' : '';
+            var excludeCell = '<td><label class="h1-exclude-label"><input type="checkbox" class="h1-exclude-checkbox" data-post-id="' + result.id + '"' + (result.is_excluded ? ' checked' : '') + '> Exclude</label></td>';
+
+            var row = '<tr' + rowClass + ' data-h1-status="' + result.status + '">' +
                 '<td>' + result.id + '</td>' +
                 '<td><strong>' + result.title + '</strong></td>' +
-                '<td>' + result.h1_count + '</td>' +
+                '<td>' + h1CountDisplay + '</td>' +
                 '<td class="' + result.status_class + '">' + result.status + '</td>' +
                 '<td><a href="' + result.edit_url + '" target="_blank" class="button button-small">Edit</a>' + debugButton + '</td>' +
+                excludeCell +
             '</tr>';
             $tbody.append(row);
         });
+
+        var results = calculateH1Summary(detailedResults);
 
         // Show results using the same function as the progressive analysis
         showH1Results(results);
@@ -979,12 +1040,13 @@ jQuery(document).ready(function($) {
                                     } catch (e) {
                                         console.error('Failed to parse single post JSON response:', e);
                                         // Add error row and continue
-                                        var row = '<tr>' +
+                                        var row = '<tr data-h1-status="">' +
                                             '<td>' + post.id + '</td>' +
                                             '<td><strong>' + post.title + '</strong></td>' +
                                             '<td>-</td>' +
                                             '<td class="h1-status-error">Parse Error</td>' +
                                             '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                                            '<td><span class="h1-exclude-disabled">Unavailable</span></td>' +
                                         '</tr>';
                                         $tbody.append(row);
                                         currentIndex++;
@@ -1018,22 +1080,25 @@ jQuery(document).ready(function($) {
                                     if (h1Count !== 1) {
                                         debugButton = ' <button class="button button-small h1-debug-btn" data-post-id="' + post.id + '">🐛 Debug</button>';
                                     }
-                                    var row = '<tr>' +
+                                    var excludeCell = '<td><label class="h1-exclude-label"><input type="checkbox" class="h1-exclude-checkbox" data-post-id="' + post.id + '"> Exclude</label></td>';
+                                    var row = '<tr data-h1-status="' + status + '">' +
                                         '<td>' + post.id + '</td>' +
                                         '<td><strong>' + post.title + '</strong></td>' +
                                         '<td>' + h1Count + '</td>' +
                                         '<td class="' + statusClass + '">' + status + '</td>' +
                                         '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a>' + debugButton + '</td>' +
+                                        excludeCell +
                                     '</tr>';
                                     $tbody.append(row);
                                 } else {
                                     // Error analyzing post
-                                    var row = '<tr>' +
+                                    var row = '<tr data-h1-status="">' +
                                         '<td>' + post.id + '</td>' +
                                         '<td><strong>' + post.title + '</strong></td>' +
                                         '<td>-</td>' +
                                         '<td class="h1-status-error">Error</td>' +
                                         '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                                        '<td><span class="h1-exclude-disabled">Unavailable</span></td>' +
                                     '</tr>';
                                     $tbody.append(row);
                                 }
@@ -1043,12 +1108,13 @@ jQuery(document).ready(function($) {
                             },
                             error: function() {
                                 // Network error
-                                var row = '<tr>' +
+                                var row = '<tr data-h1-status="">' +
                                     '<td>' + post.id + '</td>' +
                                     '<td><strong>' + post.title + '</strong></td>' +
                                     '<td>-</td>' +
                                     '<td class="h1-status-error">Network Error</td>' +
                                     '<td><a href="' + post.edit_url + '" target="_blank" class="button button-small">Edit</a></td>' +
+                                    '<td><span class="h1-exclude-disabled">Unavailable</span></td>' +
                                 '</tr>';
                                 $tbody.append(row);
 
@@ -1113,10 +1179,17 @@ jQuery(document).ready(function($) {
 
         // Add completion message and action buttons
         var completionTime = results.duration ? ' (completed in ' + results.duration + ' seconds)' : '';
-        var actionButtons = '<div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">' +
-            '<p style="margin-bottom: 15px; color: #46b450; font-weight: 600;">✓ Analysis Complete' + completionTime + '</p>' +
-            '<button id="refresh-dashboard" class="button button-primary" style="margin-right: 10px;">Update Dashboard & Close</button>' +
-            '<button id="close-modal-only" class="button button-secondary">Close Modal</button>' +
+        $resultsDiv.find('.h1-actions').remove();
+
+        var actionButtons = '<div class="h1-actions">' +
+            '<p class="h1-actions-status">✓ Analysis Complete' + completionTime + '</p>' +
+            '<p class="h1-exclusion-note">Exclude selected pages from future H1 checks.</p>' +
+            '<div class="h1-actions-buttons">' +
+                '<button id="save-h1-exclusions" class="button button-secondary" style="margin-right: 10px;">Save Exclusions</button>' +
+                '<button id="refresh-dashboard" class="button button-primary" style="margin-right: 10px;">Update Dashboard & Close</button>' +
+                '<button id="close-modal-only" class="button button-secondary">Close Modal</button>' +
+            '</div>' +
+            '<div class="h1-exclusion-message" style="margin-top: 10px;"></div>' +
         '</div>';
 
         $resultsDiv.append(actionButtons);
@@ -1131,6 +1204,83 @@ jQuery(document).ready(function($) {
             $('#h1-analysis-modal').hide();
         });
     }
+
+    // Save H1 exclusions
+    $(document).on('click', '#save-h1-exclusions', function(e) {
+        e.preventDefault();
+
+        if (typeof meta_description_boy_data === 'undefined') {
+            console.error('meta_description_boy_data is not defined');
+            return;
+        }
+
+        var excludedIds = [];
+        $('.h1-exclude-checkbox:checked').each(function() {
+            var postId = parseInt($(this).data('post-id'), 10);
+            if (!isNaN(postId)) {
+                excludedIds.push(postId);
+            }
+        });
+
+        var $message = $('.h1-exclusion-message');
+        $message.text('Saving exclusions...').css('color', '#555');
+
+        $.ajax({
+            type: 'POST',
+            url: meta_description_boy_data.ajax_url,
+            data: {
+                action: 'meta_description_boy_update_h1_exclusions',
+                post_ids: excludedIds,
+                nonce: meta_description_boy_data.nonce
+            },
+            success: function(response) {
+                if (typeof response === 'string') {
+                    try {
+                        response = JSON.parse(response);
+                    } catch (e) {
+                        $message.text('Could not parse server response.').css('color', '#b32d2e');
+                        return;
+                    }
+                }
+
+                if (!response.success) {
+                    var errorMsg = response.message || response.data?.message || 'Failed to save exclusions.';
+                    $message.text(errorMsg).css('color', '#b32d2e');
+                    return;
+                }
+
+                var excludedLookup = {};
+                excludedIds.forEach(function(id) {
+                    excludedLookup[id] = true;
+                });
+
+                $('#h1-results-tbody tr').each(function() {
+                    var $row = $(this);
+                    var rowId = parseInt($row.find('.h1-exclude-checkbox').data('post-id'), 10);
+                    var isExcluded = excludedLookup[rowId] === true;
+                    $row.toggleClass('h1-excluded-row', isExcluded);
+                });
+
+                if (h1DetailedResultsCache && h1DetailedResultsCache.length) {
+                    h1DetailedResultsCache.forEach(function(result) {
+                        result.is_excluded = excludedLookup[result.id] === true;
+                    });
+                }
+
+                var summary = h1DetailedResultsCache && h1DetailedResultsCache.length
+                    ? calculateH1Summary(h1DetailedResultsCache)
+                    : calculateH1SummaryFromTable();
+
+                showH1Results(summary);
+                $('.h1-exclusion-message')
+                    .text('Exclusions saved. Refresh to recalculate dashboard stats.')
+                    .css('color', '#1d2327');
+            },
+            error: function() {
+                $message.text('Network error while saving exclusions.').css('color', '#b32d2e');
+            }
+        });
+    });
 
     // Close modal handlers
     $(document).on('click', '.h1-modal-close, .h1-modal-overlay', function(e) {

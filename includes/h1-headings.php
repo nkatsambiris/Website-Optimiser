@@ -6,6 +6,17 @@
 // Prevent direct access
 defined( 'ABSPATH' ) || exit;
 
+function meta_description_boy_get_h1_excluded_ids() {
+    $excluded_ids = get_option('meta_description_boy_h1_excluded_ids', array());
+    if (!is_array($excluded_ids)) {
+        $excluded_ids = array();
+    }
+
+    $excluded_ids = array_values(array_unique(array_filter(array_map('intval', $excluded_ids))));
+
+    return $excluded_ids;
+}
+
 /**
  * Get H1 heading statistics with caching (dashboard display version)
  */
@@ -45,6 +56,11 @@ function meta_description_boy_get_h1_stats() {
         'fields' => 'ids',
     ));
 
+    $excluded_ids = meta_description_boy_get_h1_excluded_ids();
+    if (!empty($excluded_ids)) {
+        $all_posts = array_diff($all_posts, $excluded_ids);
+    }
+
     $total = count($all_posts);
 
     // Return a "needs refresh" state when no cached data is available
@@ -74,6 +90,11 @@ function meta_description_boy_perform_h1_analysis() {
         'numberposts' => -1,
         'fields' => 'ids',
     ));
+
+    $excluded_ids = meta_description_boy_get_h1_excluded_ids();
+    if (!empty($excluded_ids)) {
+        $all_posts = array_diff($all_posts, $excluded_ids);
+    }
 
     $total = count($all_posts);
 
@@ -496,6 +517,11 @@ function meta_description_boy_analyze_h1_tags() {
         'fields' => 'ids',
     ));
 
+    $excluded_ids = meta_description_boy_get_h1_excluded_ids();
+    if (!empty($excluded_ids)) {
+        $all_posts = array_diff($all_posts, $excluded_ids);
+    }
+
     $no_h1_ids = array();
     $multiple_h1_ids = array();
 
@@ -606,22 +632,32 @@ function meta_description_boy_get_detailed_h1_results() {
         'fields' => 'ids',
     ));
 
+    $excluded_ids = meta_description_boy_get_h1_excluded_ids();
+    $excluded_lookup = array_flip($excluded_ids);
+
     $detailed_results = array();
 
     // Check each post/page for H1 tags using the same method as the bulk analysis
     foreach ($all_posts as $post_id) {
-        $h1_count = meta_description_boy_analyze_h1_frontend($post_id);
-
-        // Determine status based on count
-        if ($h1_count === 0) {
-            $status = 'No H1';
-            $status_class = 'h1-status-error';
-        } elseif ($h1_count === 1) {
-            $status = 'Correct';
-            $status_class = 'h1-status-success';
+        $is_excluded = isset($excluded_lookup[$post_id]);
+        if ($is_excluded) {
+            $h1_count = null;
+            $status = 'Excluded';
+            $status_class = 'h1-status-excluded';
         } else {
-            $status = 'Multiple H1';
-            $status_class = 'h1-status-error';
+            $h1_count = meta_description_boy_analyze_h1_frontend($post_id);
+
+            // Determine status based on count
+            if ($h1_count === 0) {
+                $status = 'No H1';
+                $status_class = 'h1-status-error';
+            } elseif ($h1_count === 1) {
+                $status = 'Correct';
+                $status_class = 'h1-status-success';
+            } else {
+                $status = 'Multiple H1';
+                $status_class = 'h1-status-error';
+            }
         }
 
         $detailed_results[] = array(
@@ -630,7 +666,8 @@ function meta_description_boy_get_detailed_h1_results() {
             'edit_url' => get_edit_post_link($post_id),
             'h1_count' => $h1_count,
             'status' => $status,
-            'status_class' => $status_class
+            'status_class' => $status_class,
+            'is_excluded' => $is_excluded
         );
     }
 
@@ -656,6 +693,11 @@ function meta_description_boy_get_posts_for_h1_analysis() {
         'fields' => 'ids',
     ));
 
+    $excluded_ids = meta_description_boy_get_h1_excluded_ids();
+    if (!empty($excluded_ids)) {
+        $all_posts = array_diff($all_posts, $excluded_ids);
+    }
+
     $posts_data = array();
 
     foreach ($all_posts as $post_id) {
@@ -674,6 +716,30 @@ function meta_description_boy_get_posts_for_h1_analysis() {
     )));
 }
 add_action('wp_ajax_meta_description_boy_get_posts_for_h1_analysis', 'meta_description_boy_get_posts_for_h1_analysis');
+
+/**
+ * Update excluded posts for H1 analysis
+ */
+function meta_description_boy_update_h1_exclusions() {
+    // Check nonce and permissions
+    if (!check_ajax_referer('meta_description_boy_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        wp_die(json_encode(array('success' => false, 'message' => 'Unauthorized')));
+    }
+
+    $post_ids = isset($_POST['post_ids']) ? (array) $_POST['post_ids'] : array();
+    $post_ids = array_values(array_unique(array_filter(array_map('intval', $post_ids))));
+
+    update_option('meta_description_boy_h1_excluded_ids', $post_ids);
+
+    delete_option('meta_description_boy_h1_stats_data');
+    delete_transient('meta_description_boy_h1_analysis');
+
+    wp_die(json_encode(array(
+        'success' => true,
+        'excluded_ids' => $post_ids
+    )));
+}
+add_action('wp_ajax_meta_description_boy_update_h1_exclusions', 'meta_description_boy_update_h1_exclusions');
 
 /**
  * Analyze H1 for a single post
