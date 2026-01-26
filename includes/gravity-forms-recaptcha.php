@@ -67,11 +67,11 @@ function meta_description_boy_check_gravity_forms_recaptcha_status() {
                 $has_v2_keys = !empty($recaptcha_settings['site_key_v2']) && !empty($recaptcha_settings['secret_key_v2']);
 
                 // Check for reCAPTCHA v3 Enterprise mode (connected via Google OAuth)
-                // Enterprise mode uses project ID and enterprise site key instead of standard keys
-                $has_v3_enterprise = !empty($recaptcha_settings['recaptcha_project_id']) && !empty($recaptcha_settings['site_key_v3_enterprise']);
+                // Enterprise mode uses project_id and enterprise site key instead of standard keys
+                $has_v3_enterprise = !empty($recaptcha_settings['project_id']) && !empty($recaptcha_settings['site_key_v3_enterprise']);
 
                 // Check for reCAPTCHA v2 Enterprise mode
-                $has_v2_enterprise = !empty($recaptcha_settings['recaptcha_project_id']) && !empty($recaptcha_settings['site_key_v2_enterprise']);
+                $has_v2_enterprise = !empty($recaptcha_settings['project_id']) && !empty($recaptcha_settings['site_key_v2_enterprise']);
 
                 // If any configuration method is set up, consider it configured
                 if ($has_v3_keys || $has_v2_keys || $has_v3_enterprise || $has_v2_enterprise) {
@@ -92,10 +92,10 @@ function meta_description_boy_check_gravity_forms_recaptcha_status() {
                     $has_v2_keys = !empty($settings['site_key_v2']) && !empty($settings['secret_key_v2']);
                     
                     // Check for Enterprise v3 (OAuth connected)
-                    $has_v3_enterprise = !empty($settings['recaptcha_project_id']) && !empty($settings['site_key_v3_enterprise']);
+                    $has_v3_enterprise = !empty($settings['project_id']) && !empty($settings['site_key_v3_enterprise']);
                     
                     // Check for Enterprise v2 (OAuth connected)
-                    $has_v2_enterprise = !empty($settings['recaptcha_project_id']) && !empty($settings['site_key_v2_enterprise']);
+                    $has_v2_enterprise = !empty($settings['project_id']) && !empty($settings['site_key_v2_enterprise']);
 
                     if ($has_v3_keys || $has_v2_keys || $has_v3_enterprise || $has_v2_enterprise) {
                         $has_keys = true;
