@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 1.9.7
+* Version: 1.9.8
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -1068,10 +1068,9 @@ function meta_description_boy_handle_clear_cache() {
     }
 
     // Clear all plugin caches
-    meta_description_boy_clear_h1_cache();
+    meta_description_boy_force_clear_h1_cache();
     meta_description_boy_clear_sitemap_cache();
     meta_description_boy_clear_robots_cache();
-    meta_description_boy_force_clear_h1_cache();
 
     // Clear meta description cache if it exists
     delete_transient('meta_description_boy_meta_description_stats');
@@ -1099,14 +1098,13 @@ function meta_description_boy_handle_refresh_analysis() {
     }
 
     // Clear caches first
-    meta_description_boy_clear_h1_cache();
     meta_description_boy_clear_sitemap_cache();
     meta_description_boy_clear_robots_cache();
     meta_description_boy_force_clear_h1_cache();
 
-    // Force regenerate stats to warm up cache
-    if (function_exists('meta_description_boy_get_h1_stats')) {
-        meta_description_boy_get_h1_stats();
+    // Re-run the H1 analysis so results are stored in the database
+    if (function_exists('meta_description_boy_perform_h1_analysis')) {
+        meta_description_boy_perform_h1_analysis();
     }
     if (function_exists('meta_description_boy_check_sitemap')) {
         meta_description_boy_check_sitemap();

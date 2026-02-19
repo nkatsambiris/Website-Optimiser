@@ -37,36 +37,24 @@ function meta_description_boy_get_saved_h1_results() {
 }
 
 /**
- * Get H1 heading statistics with caching (dashboard display version)
+ * Get H1 heading statistics with caching (dashboard display version).
+ * Returns stored analysis results when available, adjusting the total
+ * if pages have been added or removed since the last analysis.
  */
 function meta_description_boy_get_h1_stats() {
-    // Check if we have stored data in database
     $stored_stats = get_option('meta_description_boy_h1_stats_data', false);
 
     // Backward compatibility: migrate from transient to database option
     if ($stored_stats === false) {
         $legacy_stats = get_transient('meta_description_boy_h1_stats');
         if ($legacy_stats !== false && !isset($legacy_stats['needs_refresh'])) {
-            // Migrate valid legacy data to database
             update_option('meta_description_boy_h1_stats_data', $legacy_stats);
             delete_transient('meta_description_boy_h1_stats');
             $stored_stats = $legacy_stats;
         }
     }
 
-    // Debug logging
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('H1 Stats DB Check - Has Data: ' . ($stored_stats !== false ? 'YES' : 'NO'));
-        if ($stored_stats !== false) {
-            error_log('H1 Stats Stored Data: ' . print_r($stored_stats, true));
-        }
-    }
-
-    if ($stored_stats !== false) {
-        return $stored_stats;
-    }
-
-    // If no cached data, return a "needs refresh" state instead of running expensive analysis
+    // Get current total page count
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
     $all_posts = get_posts(array(
         'post_type' => $selected_post_types,
@@ -80,20 +68,37 @@ function meta_description_boy_get_h1_stats() {
         $all_posts = array_diff($all_posts, $excluded_ids);
     }
 
-    $total = count($all_posts);
+    $current_total = count($all_posts);
 
-    // Return a "needs refresh" state when no cached data is available
-    $stats = array(
-        'total' => $total,
+    // If we have valid stored stats from a completed analysis, return them
+    if ($stored_stats !== false && !isset($stored_stats['needs_refresh'])) {
+        $stored_total = isset($stored_stats['total']) ? intval($stored_stats['total']) : 0;
+
+        // If the page count has changed, adjust the total but keep analysis results
+        if ($current_total !== $stored_total) {
+            $stored_stats['total'] = $current_total;
+            // Cap correct count at the new total (handles pages being removed)
+            $stored_stats['correct'] = min($stored_stats['correct'], $current_total);
+            $stored_stats['issues'] = $stored_stats['no_h1'] + $stored_stats['multiple_h1'];
+            $stored_stats['percentage'] = $current_total > 0
+                ? ($stored_stats['correct'] / $current_total) * 100
+                : 0;
+            $stored_stats['total_changed'] = true;
+        }
+
+        return $stored_stats;
+    }
+
+    // No stored analysis data - return "needs refresh" state
+    return array(
+        'total' => $current_total,
         'correct' => 0,
         'no_h1' => 0,
         'multiple_h1' => 0,
         'issues' => 0,
         'percentage' => 0,
-        'needs_refresh' => true
+        'needs_refresh' => true,
     );
-
-    return $stats;
 }
 
 /**
@@ -415,14 +420,11 @@ function meta_description_boy_analyze_h1_frontend($post_id, $return_details = fa
 }
 
 /**
- * Clear H1 stats cache
+ * Clear H1 cache for an individual post (used by save_post/trash/untrash hooks).
+ * Only clears the individual post's transient cache. Global analysis stats are
+ * preserved so the dashboard keeps showing the last analysis results.
  */
 function meta_description_boy_clear_h1_cache($post_id = null) {
-    // Clear the main stats data
-    delete_option('meta_description_boy_h1_stats_data');
-    delete_option('meta_description_boy_h1_detailed_results');
-
-    // If specific post ID provided, clear its individual cache (these can stay as transients for performance)
     if ($post_id) {
         delete_transient('meta_description_boy_h1_count_' . $post_id);
         delete_transient('meta_description_boy_h1_frontend_' . $post_id);
@@ -607,14 +609,13 @@ function meta_description_boy_analyze_h1_tags() {
 }
 
 /**
- * Clear the H1 analysis cache when posts are updated (compatibility function)
+ * Clear the H1 analysis cache when posts are updated (compatibility function).
+ * Only clears individual post cache and legacy transient, preserving global stats.
  */
 function meta_description_boy_clear_h1_cache_legacy($post_id) {
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
     if (in_array(get_post_type($post_id), $selected_post_types)) {
-        // Clear both old transient and new database option for compatibility
         delete_transient('meta_description_boy_h1_analysis');
-        delete_option('meta_description_boy_h1_stats_data');
         meta_description_boy_clear_h1_cache($post_id);
     }
 }
@@ -781,8 +782,8 @@ function meta_description_boy_update_h1_exclusions() {
 
     update_option('meta_description_boy_h1_excluded_ids', $post_ids);
 
-    delete_option('meta_description_boy_h1_stats_data');
-    delete_transient('meta_description_boy_h1_analysis');
+    // Exclusion changes invalidate the analysis - clear everything
+    meta_description_boy_force_clear_h1_cache();
 
     wp_die(json_encode(array(
         'success' => true,
