@@ -16,8 +16,8 @@ function meta_description_boy_check_wp_debug_status() {
     $wp_debug_display = defined('WP_DEBUG_DISPLAY') ? WP_DEBUG_DISPLAY : null;
     $script_debug = defined('SCRIPT_DEBUG') ? SCRIPT_DEBUG : false;
 
-    // Determine if any debug mode is enabled
-    $debug_enabled = $wp_debug || $wp_debug_log || $wp_debug_display || $script_debug;
+    // WP_DEBUG is the master toggle — when off, WP_DEBUG_LOG and WP_DEBUG_DISPLAY have no effect
+    $debug_enabled = $wp_debug;
 
     // Get environment type if available (WordPress 5.5+)
     $environment_type = function_exists('wp_get_environment_type') ? wp_get_environment_type() : 'unknown';
@@ -96,8 +96,21 @@ function meta_description_boy_render_wp_debug_section() {
                 <br><br><small><strong>Debug Settings:</strong></small>
                 <?php foreach ($debug_status['debug_details'] as $setting => $value): ?>
                     <br><small><strong><?php echo $setting; ?>:</strong>
-                    <span style="color: <?php echo ($value === 'Enabled') ? '#dc3232' : (($value === 'Disabled') ? '#46b450' : '#646970'); ?>;">
+                    <span style="color: <?php
+                        if ($debug_status['debug_disabled'] && $setting !== 'WP_DEBUG') {
+                            echo '#646970'; // Grey — irrelevant when WP_DEBUG is off
+                        } elseif ($value === 'Enabled') {
+                            echo '#dc3232';
+                        } elseif ($value === 'Disabled') {
+                            echo '#46b450';
+                        } else {
+                            echo '#646970';
+                        }
+                    ?>;">
                         <?php echo $value; ?>
+                        <?php if ($debug_status['debug_disabled'] && $setting !== 'WP_DEBUG'): ?>
+                            <span style="color: #646970;">(ignored)</span>
+                        <?php endif; ?>
                     </span></small>
                 <?php endforeach; ?>
 
