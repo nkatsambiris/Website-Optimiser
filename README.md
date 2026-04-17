@@ -15,6 +15,9 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 2.0.0 Changes
+- FIX: Improvements to code quality and speed optimisation
+
 ## Version 1.9.9 Changes
 - FIX: Resolve issue with WP DEBUG master toggle check
 
