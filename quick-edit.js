@@ -15,7 +15,8 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'save_yoast_meta_description',
                 post_id: postID,
-                meta_desc: updatedMetaDesc
+                meta_desc: updatedMetaDesc,
+                meta_description_boy_nonce: $('#meta_description_boy_nonce').val()
             },
             
             success: function(response) {

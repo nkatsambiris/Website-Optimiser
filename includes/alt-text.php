@@ -10,7 +10,16 @@ defined( 'ABSPATH' ) || exit;
  * Get alt text statistics
  */
 function meta_description_boy_get_alt_text_stats() {
-    // Get all image attachments using get_posts for more reliable results
+    $enable_caching = get_option('meta_description_boy_enable_caching', 1);
+    $cache_key = 'meta_description_boy_alt_text_stats';
+
+    if ($enable_caching) {
+        $cached_stats = get_transient($cache_key);
+        if ($cached_stats !== false) {
+            return $cached_stats;
+        }
+    }
+
     $all_images = get_posts(array(
         'post_type' => 'attachment',
         'post_status' => 'inherit',
@@ -19,7 +28,6 @@ function meta_description_boy_get_alt_text_stats() {
         'fields' => 'ids',
     ));
 
-    // Filter out SVG files as they don't typically need alt text for SEO
     $filtered_images = array();
     foreach ($all_images as $image_id) {
         $mime_type = get_post_mime_type($image_id);
@@ -41,7 +49,6 @@ function meta_description_boy_get_alt_text_stats() {
 
     $with_alt = 0;
 
-    // Check each image for alt text (excluding SVGs)
     foreach ($filtered_images as $image_id) {
         $alt_text = get_post_meta($image_id, '_wp_attachment_image_alt', true);
         if (!empty(trim($alt_text))) {
@@ -52,12 +59,19 @@ function meta_description_boy_get_alt_text_stats() {
     $missing = $total - $with_alt;
     $percentage = $total > 0 ? ($with_alt / $total) * 100 : 0;
 
-    return array(
+    $stats = array(
         'total' => $total,
         'with_alt' => $with_alt,
         'missing' => $missing,
         'percentage' => $percentage
     );
+
+    if ($enable_caching) {
+        $cache_duration = get_option('meta_description_boy_cache_duration', 6);
+        set_transient($cache_key, $stats, $cache_duration * HOUR_IN_SECONDS);
+    }
+
+    return $stats;
 }
 
 /**

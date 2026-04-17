@@ -27,8 +27,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
-// Include dashboard widget functionality
-require_once plugin_dir_path( __FILE__ ) . 'dashboard-widget.php';
+if ( is_admin() ) {
+    require_once plugin_dir_path( __FILE__ ) . 'dashboard-widget.php';
+}
 
 $plugin = plugin_basename(__FILE__);  // Gets the correct file name for your plugin.
 add_filter("plugin_action_links_$plugin", 'meta_description_boy_add_settings_link');
@@ -1432,17 +1433,24 @@ add_action('manage_posts_custom_column', 'display_yoast_meta_desc_column', 10, 2
 add_action('manage_pages_custom_column', 'display_yoast_meta_desc_column', 10, 2);
 
 function save_yoast_meta_description() {
-    $post_id = $_POST['post_id'];
-    $meta_desc = $_POST['meta_desc'];
+    if (!isset($_POST['meta_description_boy_nonce']) || !wp_verify_nonce($_POST['meta_description_boy_nonce'], 'meta_description_boy_nonce')) {
+        wp_send_json_error(array('message' => 'Invalid nonce'));
+    }
+
+    if (!current_user_can('edit_posts')) {
+        wp_send_json_error(array('message' => 'Insufficient permissions'));
+    }
+
+    $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+    $meta_desc = isset($_POST['meta_desc']) ? sanitize_text_field($_POST['meta_desc']) : '';
 
     if (!empty($post_id)) {
-        // Update the Yoast meta description for the post
-        update_post_meta($post_id, '_yoast_wpseo_metadesc', sanitize_text_field($meta_desc));
+        update_post_meta($post_id, '_yoast_wpseo_metadesc', $meta_desc);
         echo 'Meta description updated successfully';
     } else {
         echo 'Error: Post ID or meta description is missing';
     }
-    wp_die(); // This is required to terminate immediately and return a proper response
+    wp_die();
 }
 add_action('wp_ajax_save_yoast_meta_description', 'save_yoast_meta_description');
 

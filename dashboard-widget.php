@@ -7,42 +7,71 @@
 // Prevent direct access
 defined( 'ABSPATH' ) || exit;
 
-// Include component files
+// Core includes - always loaded in admin (needed for admin-wide hooks like cache clearing on save_post)
 require_once plugin_dir_path(__FILE__) . 'includes/shared.php';
 require_once plugin_dir_path(__FILE__) . 'includes/meta-descriptions.php';
 require_once plugin_dir_path(__FILE__) . 'includes/alt-text.php';
 require_once plugin_dir_path(__FILE__) . 'includes/h1-headings.php';
 require_once plugin_dir_path(__FILE__) . 'includes/featured-images.php';
-require_once plugin_dir_path(__FILE__) . 'includes/robots-txt.php';
-require_once plugin_dir_path(__FILE__) . 'includes/xml-sitemap.php';
-require_once plugin_dir_path(__FILE__) . 'includes/google-site-kit.php';
-require_once plugin_dir_path(__FILE__) . 'includes/wp-smush.php';
-require_once plugin_dir_path(__FILE__) . 'includes/wordfence-security.php';
-require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-recaptcha.php';
-require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-notifications.php';
-require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-confirmations.php';
-require_once plugin_dir_path(__FILE__) . 'includes/gravity-forms-conversion-events.php';
-require_once plugin_dir_path(__FILE__) . 'includes/redirects.php';
-require_once plugin_dir_path(__FILE__) . 'includes/hubspot.php';
-require_once plugin_dir_path(__FILE__) . 'includes/meta-pixel.php';
-require_once plugin_dir_path(__FILE__) . 'includes/managewp.php';
-require_once plugin_dir_path(__FILE__) . 'includes/updraftplus.php';
-require_once plugin_dir_path(__FILE__) . 'includes/custom-404-page.php';
-require_once plugin_dir_path(__FILE__) . 'includes/clickable-links.php';
-require_once plugin_dir_path(__FILE__) . 'includes/navigation-font-size.php';
-require_once plugin_dir_path(__FILE__) . 'includes/uptime-monitoring.php';
-require_once plugin_dir_path(__FILE__) . 'includes/favicon.php';
-require_once plugin_dir_path(__FILE__) . 'includes/wp-debug.php';
-require_once plugin_dir_path(__FILE__) . 'includes/caching-plugins.php';
-require_once plugin_dir_path(__FILE__) . 'includes/dynamic-copyright-year.php';
-require_once plugin_dir_path(__FILE__) . 'includes/woocommerce.php';
-require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-google-analytics.php';
-require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-emails.php';
-require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-payment-methods.php';
-require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-shipping-zones.php';
-require_once plugin_dir_path(__FILE__) . 'includes/woocommerce-tax-settings.php';
-require_once plugin_dir_path(__FILE__) . 'includes/media-videos.php';
-require_once plugin_dir_path(__FILE__) . 'includes/hover-states-animations.php';
+
+/**
+ * Load section-specific includes (optimisation checks, render functions, and AJAX handlers).
+ * Deferred to avoid parsing 30+ files on every admin page load.
+ */
+function meta_description_boy_load_section_includes() {
+    static $loaded = false;
+    if ($loaded) return;
+    $loaded = true;
+
+    $dir = plugin_dir_path(__FILE__) . 'includes/';
+    require_once $dir . 'robots-txt.php';
+    require_once $dir . 'xml-sitemap.php';
+    require_once $dir . 'google-site-kit.php';
+    require_once $dir . 'wp-smush.php';
+    require_once $dir . 'wordfence-security.php';
+    require_once $dir . 'gravity-forms-recaptcha.php';
+    require_once $dir . 'gravity-forms-notifications.php';
+    require_once $dir . 'gravity-forms-confirmations.php';
+    require_once $dir . 'gravity-forms-conversion-events.php';
+    require_once $dir . 'redirects.php';
+    require_once $dir . 'hubspot.php';
+    require_once $dir . 'meta-pixel.php';
+    require_once $dir . 'managewp.php';
+    require_once $dir . 'updraftplus.php';
+    require_once $dir . 'custom-404-page.php';
+    require_once $dir . 'clickable-links.php';
+    require_once $dir . 'navigation-font-size.php';
+    require_once $dir . 'uptime-monitoring.php';
+    require_once $dir . 'favicon.php';
+    require_once $dir . 'wp-debug.php';
+    require_once $dir . 'caching-plugins.php';
+    require_once $dir . 'dynamic-copyright-year.php';
+    require_once $dir . 'woocommerce.php';
+    require_once $dir . 'woocommerce-google-analytics.php';
+    require_once $dir . 'woocommerce-emails.php';
+    require_once $dir . 'woocommerce-payment-methods.php';
+    require_once $dir . 'woocommerce-shipping-zones.php';
+    require_once $dir . 'woocommerce-tax-settings.php';
+    require_once $dir . 'media-videos.php';
+    require_once $dir . 'hover-states-animations.php';
+}
+
+if (wp_doing_ajax()) {
+    // AJAX handlers defined in section includes need to be registered immediately
+    meta_description_boy_load_section_includes();
+} else {
+    // On regular admin pages, only load when on plugin pages or WordPress dashboard
+    add_action('current_screen', function ($screen) {
+        $plugin_screens = array(
+            'toplevel_page_website-optimisation',
+            'optimisation_page_meta-description-boy',
+            'dashboard',
+        );
+        if (in_array($screen->id, $plugin_screens)) {
+            meta_description_boy_load_section_includes();
+        }
+    });
+}
 
 /**
  * Add admin menu page for SEO optimization
@@ -1025,7 +1054,6 @@ function meta_description_boy_handle_email_report() {
     }
 }
 add_action('wp_ajax_seo_email_report', 'meta_description_boy_handle_email_report');
-add_action('wp_ajax_nopriv_seo_email_report', 'meta_description_boy_handle_email_report'); // Allow for non-admin users if needed
 
 
 

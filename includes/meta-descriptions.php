@@ -10,9 +10,18 @@ defined( 'ABSPATH' ) || exit;
  * Get meta description statistics
  */
 function meta_description_boy_get_meta_description_stats() {
+    $enable_caching = get_option('meta_description_boy_enable_caching', 1);
+    $cache_key = 'meta_description_boy_meta_description_stats';
+
+    if ($enable_caching) {
+        $cached_stats = get_transient($cache_key);
+        if ($cached_stats !== false) {
+            return $cached_stats;
+        }
+    }
+
     $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
 
-    // Get total published posts/pages using get_posts instead of WP_Query for more reliable counting
     $all_posts = get_posts(array(
         'post_type' => $selected_post_types,
         'post_status' => 'publish',
@@ -33,17 +42,14 @@ function meta_description_boy_get_meta_description_stats() {
 
     $with_meta = 0;
 
-    // Check multiple SEO plugin meta description fields
     foreach ($all_posts as $post_id) {
         $has_meta = false;
 
-        // Check Yoast SEO
         $yoast_meta = get_post_meta($post_id, '_yoast_wpseo_metadesc', true);
         if (!empty(trim($yoast_meta))) {
             $has_meta = true;
         }
 
-        // Check RankMath
         if (!$has_meta) {
             $rankmath_meta = get_post_meta($post_id, 'rank_math_description', true);
             if (!empty(trim($rankmath_meta))) {
@@ -51,7 +57,6 @@ function meta_description_boy_get_meta_description_stats() {
             }
         }
 
-        // Check All in One SEO
         if (!$has_meta) {
             $aioseo_meta = get_post_meta($post_id, '_aioseo_description', true);
             if (!empty(trim($aioseo_meta))) {
@@ -59,7 +64,6 @@ function meta_description_boy_get_meta_description_stats() {
             }
         }
 
-        // Check SEOPress
         if (!$has_meta) {
             $seopress_meta = get_post_meta($post_id, '_seopress_titles_desc', true);
             if (!empty(trim($seopress_meta))) {
@@ -67,7 +71,6 @@ function meta_description_boy_get_meta_description_stats() {
             }
         }
 
-        // Check custom meta description field (generic)
         if (!$has_meta) {
             $custom_meta = get_post_meta($post_id, 'meta_description', true);
             if (!empty(trim($custom_meta))) {
@@ -83,12 +86,19 @@ function meta_description_boy_get_meta_description_stats() {
     $missing = $total - $with_meta;
     $percentage = $total > 0 ? ($with_meta / $total) * 100 : 0;
 
-    return array(
+    $stats = array(
         'total' => $total,
         'with_meta' => $with_meta,
         'missing' => $missing,
         'percentage' => $percentage
     );
+
+    if ($enable_caching) {
+        $cache_duration = get_option('meta_description_boy_cache_duration', 6);
+        set_transient($cache_key, $stats, $cache_duration * HOUR_IN_SECONDS);
+    }
+
+    return $stats;
 }
 
 /**
