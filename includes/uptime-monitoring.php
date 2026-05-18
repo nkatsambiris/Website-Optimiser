@@ -32,7 +32,7 @@ function meta_description_boy_check_uptime_monitoring_status() {
             'approved_date' => '',
             'status' => 'Uptime Monitoring Pending',
             'message' => 'Please confirm that the website has been added to uptime monitoring',
-            'class' => 'status-warning'
+            'class' => 'status-error'
         );
     }
 }

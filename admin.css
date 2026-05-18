@@ -429,6 +429,620 @@ body.compact-mode .compact-toggle-btn .dashicons-list-view:before {
     content: "\f164"; /* dashicons-grid-view */
 }
 
+/* Website Optimisation dashboard refresh */
+.toplevel_page_website-optimisation {
+    background: #f3f6f8;
+}
+
+.toplevel_page_website-optimisation #wpcontent {
+    background: linear-gradient(180deg, #f8fafc 0, #f3f6f8 340px);
+}
+
+.toplevel_page_website-optimisation #wpbody {
+    font-family: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.optimisation-page-header {
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom: 1px solid #dbe3ea;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+    margin-bottom: 24px;
+    padding: 18px 24px;
+}
+
+.optimisation-page-header h1 {
+    color: #111827;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0;
+    margin: 0;
+}
+
+.optimisation-page-header h1 > .dashicons {
+    align-items: center;
+    background: #e8f1f8;
+    border-radius: 8px;
+    color: #1f6f9f;
+    display: inline-flex;
+    height: 34px;
+    justify-content: center;
+    margin-right: 12px !important;
+    width: 34px;
+}
+
+#meta-description-boy-optimisation-page {
+    margin-top: 0;
+}
+
+#meta-description-boy-optimisation-page .seo-stats-grid {
+    align-items: start;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+#meta-description-boy-optimisation-page .seo-stat-item {
+    background: #fff;
+    border: 1px solid #dbe3ea;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 28px rgba(15, 23, 42, 0.05);
+    box-sizing: border-box;
+    display: flex;
+    min-height: 150px;
+    overflow: visible;
+    padding: 16px 14px 14px;
+    position: relative;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    z-index: 1;
+}
+
+#meta-description-boy-optimisation-page .seo-stat-item:hover,
+#meta-description-boy-optimisation-page .seo-stat-item.details-open {
+    border-color: #b7c6d3;
+    box-shadow: 0 4px 8px rgba(15, 23, 42, 0.06), 0 18px 34px rgba(15, 23, 42, 0.09);
+    transform: translateY(-1px);
+    z-index: 80;
+}
+
+#meta-description-boy-optimisation-page .seo-stat-item.status-good {
+    border-color: #b8dac7;
+    box-shadow: inset 0 3px 0 #2f9e63, 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 28px rgba(15, 23, 42, 0.05);
+}
+
+#meta-description-boy-optimisation-page .seo-stat-item.status-warning,
+#meta-description-boy-optimisation-page .seo-stat-item.status-info {
+    border-color: #e4d59a;
+    box-shadow: inset 0 3px 0 #b78b08, 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 28px rgba(15, 23, 42, 0.05);
+}
+
+#meta-description-boy-optimisation-page .seo-stat-item.status-error {
+    border-color: #e7b8b8;
+    box-shadow: inset 0 3px 0 #c2413b, 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 28px rgba(15, 23, 42, 0.05);
+}
+
+#meta-description-boy-optimisation-page .stat-content {
+    align-items: stretch;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+    text-align: left;
+}
+
+#meta-description-boy-optimisation-page .stat-card-header {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    min-height: 34px;
+    padding-right: 28px;
+}
+
+#meta-description-boy-optimisation-page .stat-icon {
+    align-items: center;
+    background: #f2f6f9;
+    border: 1px solid #dce6ed;
+    border-radius: 10px;
+    color: #53616d;
+    display: inline-flex;
+    font-size: 0;
+    flex: 0 0 auto;
+    height: 30px;
+    justify-content: center;
+    margin: 0;
+    width: 30px;
+}
+
+#meta-description-boy-optimisation-page .stat-icon::before {
+    content: "\f348";
+    font-family: dashicons;
+    font-size: 15px;
+    line-height: 1;
+}
+
+#meta-description-boy-optimisation-page .status-good .stat-icon {
+    background: #edf8f1;
+    border-color: #c9ead5;
+    color: #23764b;
+}
+
+#meta-description-boy-optimisation-page .status-good .stat-icon::before {
+    content: "\f147";
+}
+
+#meta-description-boy-optimisation-page .status-warning .stat-icon,
+#meta-description-boy-optimisation-page .status-info .stat-icon {
+    background: #fff8df;
+    border-color: #f1dda4;
+    color: #8a6500;
+}
+
+#meta-description-boy-optimisation-page .status-warning .stat-icon::before,
+#meta-description-boy-optimisation-page .status-info .stat-icon::before {
+    content: "\f534";
+}
+
+#meta-description-boy-optimisation-page .status-error .stat-icon {
+    background: #fff0f0;
+    border-color: #f0c8c8;
+    color: #a9342f;
+}
+
+#meta-description-boy-optimisation-page .status-error .stat-icon::before {
+    content: "\f153";
+}
+
+#meta-description-boy-optimisation-page .stat-content h4 {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0;
+    max-width: 100%;
+    min-height: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+}
+
+#meta-description-boy-optimisation-page .stat-status {
+    display: none !important;
+}
+
+#meta-description-boy-optimisation-page .stat-status.status-good {
+    background: #e6f6ec;
+    color: #17613c;
+}
+
+#meta-description-boy-optimisation-page .stat-status.status-warning,
+#meta-description-boy-optimisation-page .stat-status.status-info {
+    background: #fff4cf;
+    color: #765600;
+}
+
+#meta-description-boy-optimisation-page .stat-status.status-error {
+    background: #ffe7e7;
+    color: #982d29;
+}
+
+#meta-description-boy-optimisation-page .stat-number {
+    align-self: flex-start;
+    color: #334155;
+    display: inline-flex;
+    font-size: 24px;
+    font-weight: 750;
+    letter-spacing: 0;
+    line-height: 1;
+    margin: 0 0 0 40px;
+    padding: 0;
+    text-align: left;
+}
+
+#meta-description-boy-optimisation-page .status-error .stat-number {
+    color: #a9342f;
+}
+
+#meta-description-boy-optimisation-page .status-warning .stat-number,
+#meta-description-boy-optimisation-page .status-info .stat-number {
+    color: #8a6500;
+}
+
+#meta-description-boy-optimisation-page .status-good .stat-number {
+    color: #23764b;
+}
+
+#meta-description-boy-optimisation-page .stat-action {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
+    margin: auto 0 0 40px;
+    max-width: calc(100% - 40px);
+    padding-top: 4px;
+    text-align: left;
+}
+
+#meta-description-boy-optimisation-page .stat-action .button,
+#meta-description-boy-optimisation-page .stat-details-toggle,
+#meta-description-boy-optimisation-page .stat-actions-menu-toggle,
+#meta-description-boy-optimisation-page .stat-form-toggle {
+    align-items: center;
+    border-radius: 7px;
+    display: inline-flex;
+    font-size: 12px;
+    gap: 5px;
+    line-height: 1.2;
+    margin: 2px;
+    min-height: 28px;
+    white-space: normal;
+}
+
+.optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .stat-actions-menu {
+    background: #fff;
+    border: 1px solid #d8e5ee;
+    border-radius: 8px;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+    box-sizing: border-box;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    left: 40px;
+    margin: 0;
+    max-height: 220px;
+    max-width: calc(100% - 40px);
+    overflow: auto;
+    padding: 8px;
+    position: absolute;
+    right: 0;
+    text-align: left;
+    top: 78px;
+    z-index: 95;
+}
+
+.optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .actions-open .stat-actions-menu {
+    display: flex;
+}
+
+#meta-description-boy-optimisation-page .stat-action .button {
+    background: #fff;
+    border-color: #b8cad7;
+    box-shadow: none;
+    color: #1f5878;
+    justify-content: center;
+    margin: 0 !important;
+    max-width: 100%;
+    min-width: 0;
+    padding: 5px 10px;
+    text-shadow: none;
+    width: 100%;
+}
+
+#meta-description-boy-optimisation-page .stat-action .button-primary,
+#meta-description-boy-optimisation-page .stat-action .stat-action-primary {
+    background: #1f6f9f;
+    border-color: #1f6f9f;
+    color: #fff;
+}
+
+#meta-description-boy-optimisation-page .stat-action .stat-action-secondary {
+    background: #fff;
+    border-color: #b8cad7;
+    color: #1f5878;
+}
+
+#meta-description-boy-optimisation-page .stat-action .stat-action-quiet {
+    background: transparent;
+    border-color: transparent;
+    color: #52616e;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+#meta-description-boy-optimisation-page .stat-action .button:hover,
+#meta-description-boy-optimisation-page .stat-action .button:focus {
+    border-color: #1f6f9f;
+    color: #0f4f75;
+}
+
+#meta-description-boy-optimisation-page .stat-action .button-primary:hover,
+#meta-description-boy-optimisation-page .stat-action .button-primary:focus,
+#meta-description-boy-optimisation-page .stat-action .stat-action-primary:hover,
+#meta-description-boy-optimisation-page .stat-action .stat-action-primary:focus {
+    background: #185d86;
+    border-color: #185d86;
+    color: #fff;
+}
+
+#meta-description-boy-optimisation-page .stat-action .stat-action-quiet:hover,
+#meta-description-boy-optimisation-page .stat-action .stat-action-quiet:focus {
+    background: #eef5f9;
+    border-color: #d8e5ee;
+    color: #1f5878;
+}
+
+#meta-description-boy-optimisation-page .stat-details-toggle,
+#meta-description-boy-optimisation-page .stat-actions-menu-toggle,
+#meta-description-boy-optimisation-page .stat-form-toggle {
+    background: transparent;
+    border: 0;
+    color: #52616e;
+    cursor: pointer;
+    margin: 0;
+    padding: 4px 6px;
+}
+
+#meta-description-boy-optimisation-page .stat-details-toggle:hover,
+#meta-description-boy-optimisation-page .stat-details-toggle:focus,
+#meta-description-boy-optimisation-page .stat-actions-menu-toggle:hover,
+#meta-description-boy-optimisation-page .stat-actions-menu-toggle:focus,
+#meta-description-boy-optimisation-page .stat-form-toggle:hover,
+#meta-description-boy-optimisation-page .stat-form-toggle:focus {
+    color: #1f6f9f;
+}
+
+#meta-description-boy-optimisation-page .stat-details-toggle .dashicons {
+    font-size: 17px;
+    height: 17px;
+    width: 17px;
+}
+
+#meta-description-boy-optimisation-page .stat-details-toggle .screen-reader-text {
+    clip: rect(1px, 1px, 1px, 1px);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+#meta-description-boy-optimisation-page .stat-details-toggle {
+    border-radius: 999px;
+    height: 26px;
+    justify-content: center;
+    min-height: 26px;
+    padding: 0;
+    position: absolute;
+    right: -4px;
+    top: 1px;
+    width: 26px;
+}
+
+#meta-description-boy-optimisation-page .stat-actions-menu-toggle {
+    background: #fff;
+    border: 1px solid #b8cad7;
+    box-shadow: none;
+    color: #1f5878;
+    margin: auto 0 0 40px;
+    padding: 5px 10px;
+    width: fit-content;
+}
+
+#meta-description-boy-optimisation-page .stat-actions-menu-toggle .dashicons {
+    font-size: 14px;
+    height: 14px;
+    width: 14px;
+}
+
+#meta-description-boy-optimisation-page .actions-open .stat-actions-menu-toggle,
+#meta-description-boy-optimisation-page .form-open .stat-form-toggle,
+#meta-description-boy-optimisation-page .stat-actions-menu-toggle:hover,
+#meta-description-boy-optimisation-page .stat-actions-menu-toggle:focus {
+    background: #eef5f9;
+    border-color: #8eb3ca;
+    color: #0f4f75;
+}
+
+#meta-description-boy-optimisation-page .stat-details-toggle:hover,
+#meta-description-boy-optimisation-page .stat-details-toggle:focus {
+    background: #eef5f9;
+}
+
+.optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .stat-label {
+    background: #101820;
+    border-radius: 8px;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.22);
+    box-sizing: border-box;
+    color: #f8fafc;
+    display: block;
+    font-size: 12px;
+    left: 14px;
+    line-height: 1.55;
+    margin: 0;
+    max-height: 280px;
+    opacity: 0;
+    overflow: auto;
+    padding: 14px;
+    pointer-events: none;
+    position: absolute;
+    right: 14px;
+    text-align: left;
+    top: 54px;
+    transform: translateY(-4px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    visibility: hidden;
+    z-index: 90;
+}
+
+.optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .stat-label::before {
+    border-bottom: 7px solid #101820;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    content: "";
+    left: 50%;
+    position: absolute;
+    top: -7px;
+    transform: translateX(-50%);
+}
+
+.optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .details-open .stat-label {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    visibility: visible;
+}
+
+.optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .stat-label small,
+.optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .stat-label strong,
+.optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .stat-label em {
+    color: inherit;
+}
+
+#meta-description-boy-optimisation-page .seo-stats-footer {
+    background: transparent;
+    border-top: 1px solid #dbe3ea;
+    border-radius: 0;
+}
+
+.optimisation-form-modal {
+    align-items: center;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    left: 0;
+    padding: 24px;
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 100000;
+}
+
+.optimisation-form-modal[hidden] {
+    display: none;
+}
+
+.optimisation-form-modal-backdrop {
+    background: rgba(15, 23, 42, 0.45);
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.optimisation-form-modal-dialog {
+    background: #fff;
+    border: 1px solid #d8e5ee;
+    border-radius: 12px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 48px);
+    max-width: 460px;
+    overflow: hidden;
+    position: relative;
+    width: min(100%, 460px);
+}
+
+.optimisation-form-modal-header {
+    align-items: center;
+    border-bottom: 1px solid #e5edf3;
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 18px;
+}
+
+.optimisation-form-modal-header h2 {
+    color: #111827;
+    font-size: 16px;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.optimisation-form-modal-close {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    color: #52616e;
+    cursor: pointer;
+    display: inline-flex;
+    height: 30px;
+    justify-content: center;
+    padding: 0;
+    width: 30px;
+}
+
+.optimisation-form-modal-close:hover,
+.optimisation-form-modal-close:focus {
+    background: #eef5f9;
+    color: #0f4f75;
+}
+
+.optimisation-form-modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px;
+}
+
+.optimisation-form-modal-body > div {
+    background: #f7fafc !important;
+    border: 1px solid #dbe6ee !important;
+    border-left: 4px solid #1f6f9f !important;
+    border-radius: 10px !important;
+    box-sizing: border-box;
+    padding: 14px !important;
+}
+
+.optimisation-form-modal-body label {
+    color: #24313d;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.optimisation-form-modal-body input[type="text"] {
+    font-size: 14px;
+    min-height: 36px;
+}
+
+.optimisation-form-modal-body .button {
+    margin-top: 4px;
+}
+
+#meta-description-boy-optimisation-page .stat-form-toggle {
+    margin-top: auto;
+}
+
+#meta-description-boy-optimisation-page .stat-card-has-form.form-open {
+    min-height: 0;
+}
+
+.compact-toggle-btn {
+    align-items: center;
+    border-radius: 8px;
+    display: inline-flex;
+    height: 34px;
+    justify-content: center;
+    width: 34px;
+}
+
+body.compact-mode #meta-description-boy-optimisation-page .seo-stat-item {
+    min-height: 118px;
+}
+
+body.compact-mode #meta-description-boy-optimisation-page .stat-details-toggle {
+    display: none;
+}
+
+@media (max-width: 782px) {
+    .optimisation-page-header {
+        margin-left: -10px;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    #meta-description-boy-optimisation-page .seo-stats-grid {
+        gap: 12px;
+    }
+
+    .optimisation-dashboard-enhanced #meta-description-boy-optimisation-page .stat-label {
+        left: 12px;
+        right: 12px;
+    }
+}
+
 /* H1 Analysis Modal Styles */
 .h1-modal-overlay {
     position: fixed;

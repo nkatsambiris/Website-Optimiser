@@ -1512,6 +1512,410 @@ jQuery(document).ready(function($) {
         $('#h1-debug-body').html(html);
     }
 
+    function initialiseOptimisationDashboardCards() {
+        var $dashboard = $('#meta-description-boy-optimisation-page');
+
+        if (!$dashboard.length) {
+            return;
+        }
+
+        $('body').addClass('optimisation-dashboard-enhanced');
+
+        $dashboard.find('.seo-stat-item').each(function(index) {
+            var $card = $(this);
+            var $label = $card.find('.stat-label').first();
+
+            $card.data('originalIndex', index);
+
+            if (!$label.length || $card.hasClass('stat-card-enhanced')) {
+                return;
+            }
+
+            var detailsText = $.trim($label.text().replace(/\s+/g, ' '));
+
+            if (!detailsText.length) {
+                $label.remove();
+                return;
+            }
+
+            var detailsId = 'seo-stat-details-' + index;
+            var $toggle = $('<button type="button" class="stat-details-toggle" aria-expanded="false" aria-label="View details">' +
+                '<span class="dashicons dashicons-info-outline" aria-hidden="true"></span>' +
+                '<span class="screen-reader-text">Details</span>' +
+            '</button>');
+
+            $label.attr({
+                id: detailsId,
+                role: 'dialog',
+                'aria-hidden': 'true'
+            }).addClass('stat-details-popover');
+
+            $toggle.attr('aria-controls', detailsId);
+            $card.addClass('stat-card-enhanced');
+
+            var $content = $card.find('.stat-content').first();
+            var $icon = $card.children('.stat-icon').first();
+            var $title = $content.find('h4').first();
+            var $header = $('<div class="stat-card-header"></div>');
+
+            if ($icon.length && $title.length) {
+                $icon.attr('aria-hidden', 'true');
+                $title.before($header);
+                $header.append($icon, $title);
+            }
+
+            $content.prepend($toggle);
+
+            var $action = $card.find('.stat-action').first();
+            if ($action.length) {
+                $action.find('.button').each(function() {
+                    var $button = $(this);
+                    var buttonText = $.trim($button.text().replace(/\s+/g, ' '));
+
+                    $button.addClass('stat-action-button');
+
+                    if (/^(add|install|fix|configure|enable|activate|confirm)/i.test(buttonText)) {
+                        $button.addClass('stat-action-primary');
+                    } else if (/^(reset|help|learn)/i.test(buttonText)) {
+                        $button.addClass('stat-action-quiet');
+                    } else {
+                        $button.addClass('stat-action-secondary');
+                    }
+                });
+
+                if ($action.find('input, textarea, select').length) {
+                    var modalSourceId = 'seo-stat-form-source-' + index;
+                    var $modalSource = $('<div class="stat-form-modal-source" hidden></div>').attr('id', modalSourceId);
+                    var $formBlocks = $();
+
+                    $action.find('input, textarea, select').each(function() {
+                        var $block = $(this).parentsUntil($action, 'div').last();
+
+                        if (!$block.length) {
+                            $block = $(this).closest('label, p, div');
+                        }
+
+                        if ($block.length && !$formBlocks.is($block)) {
+                            $formBlocks = $formBlocks.add($block);
+                        }
+                    });
+
+                    if ($formBlocks.length) {
+                        $formBlocks.appendTo($modalSource);
+                        $action.children('br').remove();
+                        $action.after($modalSource);
+                        $action.append(
+                            $('<button type="button" class="button button-small stat-action-button stat-action-secondary stat-form-modal-toggle">Open confirmation form</button>')
+                                .attr('data-form-source', modalSourceId)
+                        );
+                        $card.addClass('stat-card-has-form-modal');
+                    }
+                }
+
+                if ($action.children().length) {
+                    var actionsId = 'seo-stat-actions-' + index;
+                    var $actionsToggle = $('<button type="button" class="stat-actions-menu-toggle" aria-expanded="false">' +
+                        '<span>Actions</span>' +
+                        '<span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>' +
+                    '</button>');
+
+                    $action.attr({
+                        id: actionsId,
+                        'aria-hidden': 'true'
+                    }).addClass('stat-actions-menu');
+
+                    $actionsToggle.attr('aria-controls', actionsId);
+                    $action.before($actionsToggle);
+                    $card.addClass('stat-card-has-actions');
+                }
+            }
+        });
+    }
+
+    function getOptimisationStatusRank($card) {
+        if ($card.hasClass('status-error')) {
+            return 0;
+        }
+
+        if ($card.hasClass('status-warning')) {
+            return 1;
+        }
+
+        if ($card.hasClass('status-info')) {
+            return 2;
+        }
+
+        if ($card.hasClass('status-good')) {
+            return 3;
+        }
+
+        return 2;
+    }
+
+    function sortOptimisationDashboardCards() {
+        var $grid = $('#meta-description-boy-optimisation-page .seo-stats-grid').first();
+
+        if (!$grid.length) {
+            return;
+        }
+
+        $grid.children('.seo-stat-item').sort(function(a, b) {
+            var $a = $(a);
+            var $b = $(b);
+            var rankDifference = getOptimisationStatusRank($a) - getOptimisationStatusRank($b);
+
+            if (rankDifference !== 0) {
+                return rankDifference;
+            }
+
+            return ($a.data('originalIndex') || 0) - ($b.data('originalIndex') || 0);
+        }).appendTo($grid);
+    }
+
+    function closeOptimisationDetails($exceptCard) {
+        $('.seo-stat-item.details-open').not($exceptCard).each(function() {
+            closeOptimisationDetailsCard($(this));
+        });
+    }
+
+    function closeOptimisationDetailsCard($card) {
+        $card.removeClass('details-open');
+        $card.find('.stat-details-toggle').attr('aria-expanded', 'false');
+        $card.find('.stat-details-popover').attr('aria-hidden', 'true');
+    }
+
+    function openOptimisationDetails($card) {
+        closeOptimisationDetails($card);
+        closeOptimisationActions($card);
+
+        $card.addClass('details-open');
+        $card.find('.stat-details-toggle').attr('aria-expanded', 'true');
+        $card.find('.stat-details-popover').attr('aria-hidden', 'false');
+    }
+
+    function closeOptimisationActions($exceptCard) {
+        $('.seo-stat-item.actions-open').not($exceptCard).each(function() {
+            closeOptimisationActionsCard($(this));
+        });
+
+        $('.seo-stat-item.form-open').not($exceptCard).each(function() {
+            var $card = $(this);
+            $card.removeClass('form-open');
+            $card.find('.stat-form-toggle').attr('aria-expanded', 'false');
+            $card.find('.stat-form-panel').attr('aria-hidden', 'true');
+        });
+    }
+
+    function closeOptimisationActionsCard($card) {
+        $card.removeClass('actions-open');
+        $card.find('.stat-actions-menu-toggle').not('.stat-form-toggle').attr('aria-expanded', 'false');
+        $card.find('.stat-actions-menu').attr('aria-hidden', 'true');
+    }
+
+    function openOptimisationActions($card) {
+        closeOptimisationDetails();
+        closeOptimisationActions($card);
+
+        $card.addClass('actions-open');
+        $card.find('.stat-actions-menu-toggle').not('.stat-form-toggle').attr('aria-expanded', 'true');
+        $card.find('.stat-actions-menu').attr('aria-hidden', 'false');
+    }
+
+    function scheduleOptimisationDetailsClose($card) {
+        clearTimeout($card.data('detailsCloseTimer'));
+
+        $card.data('detailsCloseTimer', setTimeout(function() {
+            var activeElement = document.activeElement;
+            var stillActive = $card.find('.stat-details-toggle, .stat-details-popover').is(':hover') ||
+                $card.find('.stat-details-toggle, .stat-details-popover').filter(function() {
+                    return this === activeElement || $.contains(this, activeElement);
+                }).length;
+
+            if (!stillActive) {
+                closeOptimisationDetailsCard($card);
+            }
+        }, 120));
+    }
+
+    function scheduleOptimisationActionsClose($card) {
+        clearTimeout($card.data('actionsCloseTimer'));
+
+        $card.data('actionsCloseTimer', setTimeout(function() {
+            var activeElement = document.activeElement;
+            var stillActive = $card.find('.stat-actions-menu-toggle:not(.stat-form-toggle), .stat-actions-menu').is(':hover') ||
+                $card.find('.stat-actions-menu-toggle:not(.stat-form-toggle), .stat-actions-menu').filter(function() {
+                    return this === activeElement || $.contains(this, activeElement);
+                }).length;
+
+            if (!stillActive) {
+                closeOptimisationActionsCard($card);
+            }
+        }, 120));
+    }
+
+    function getOptimisationFormModal() {
+        var $modal = $('#optimisation-form-modal');
+
+        if ($modal.length) {
+            return $modal;
+        }
+
+        $modal = $(
+            '<div id="optimisation-form-modal" class="optimisation-form-modal" hidden>' +
+                '<div class="optimisation-form-modal-backdrop" data-close-optimisation-form-modal="true"></div>' +
+                '<div class="optimisation-form-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="optimisation-form-modal-title">' +
+                    '<div class="optimisation-form-modal-header">' +
+                        '<h2 id="optimisation-form-modal-title">Confirmation</h2>' +
+                        '<button type="button" class="optimisation-form-modal-close" data-close-optimisation-form-modal="true" aria-label="Close confirmation form">' +
+                            '<span class="dashicons dashicons-no-alt" aria-hidden="true"></span>' +
+                        '</button>' +
+                    '</div>' +
+                    '<div class="optimisation-form-modal-body"></div>' +
+                '</div>' +
+            '</div>'
+        );
+
+        $('body').append($modal);
+        return $modal;
+    }
+
+    function closeOptimisationFormModal() {
+        var $modal = $('#optimisation-form-modal');
+
+        if (!$modal.length || $modal.attr('hidden')) {
+            return;
+        }
+
+        var sourceId = $modal.data('formSource');
+        var $source = $('#' + sourceId);
+
+        if ($source.length) {
+            $modal.find('.optimisation-form-modal-body').children().appendTo($source);
+        }
+
+        $modal.attr('hidden', true).removeData('formSource');
+        $('body').removeClass('optimisation-form-modal-open');
+    }
+
+    initialiseOptimisationDashboardCards();
+    sortOptimisationDashboardCards();
+
+    $(document).on('mouseenter focusin', '.stat-details-toggle, .stat-details-popover', function() {
+        var $card = $(this).closest('.seo-stat-item');
+
+        clearTimeout($card.data('detailsCloseTimer'));
+        openOptimisationDetails($card);
+    });
+
+    $(document).on('mouseleave focusout', '.stat-details-toggle, .stat-details-popover', function() {
+        scheduleOptimisationDetailsClose($(this).closest('.seo-stat-item'));
+    });
+
+    $(document).on('mouseenter focusin', '.stat-actions-menu-toggle:not(.stat-form-toggle), .stat-actions-menu', function() {
+        var $card = $(this).closest('.seo-stat-item');
+
+        clearTimeout($card.data('actionsCloseTimer'));
+        openOptimisationActions($card);
+    });
+
+    $(document).on('mouseleave focusout', '.stat-actions-menu-toggle:not(.stat-form-toggle), .stat-actions-menu', function() {
+        scheduleOptimisationActionsClose($(this).closest('.seo-stat-item'));
+    });
+
+    $(document).on('click', '.stat-details-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var $button = $(this);
+        var $card = $button.closest('.seo-stat-item');
+        var isOpen = $card.hasClass('details-open');
+
+        if (isOpen) {
+            closeOptimisationDetails();
+        } else {
+            openOptimisationDetails($card);
+        }
+    });
+
+    $(document).on('click', '.stat-actions-menu-toggle:not(.stat-form-toggle)', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var $button = $(this);
+        var $card = $button.closest('.seo-stat-item');
+        var isOpen = $card.hasClass('actions-open');
+
+        if (isOpen) {
+            closeOptimisationActions();
+        } else {
+            openOptimisationActions($card);
+        }
+    });
+
+    $(document).on('click', '.stat-form-modal-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var sourceId = $(this).attr('data-form-source');
+        var $source = $('#' + sourceId);
+
+        if (!$source.length) {
+            return;
+        }
+
+        closeOptimisationDetails();
+        closeOptimisationActions();
+        closeOptimisationFormModal();
+
+        var $modal = getOptimisationFormModal();
+        var title = $.trim($(this).closest('.seo-stat-item').find('h4').first().text()) || 'Confirmation';
+
+        $modal.find('#optimisation-form-modal-title').text(title);
+        $source.children().appendTo($modal.find('.optimisation-form-modal-body'));
+        $modal.data('formSource', sourceId).removeAttr('hidden');
+        $('body').addClass('optimisation-form-modal-open');
+        $modal.find('input, button, textarea, select, a').filter(':visible').first().trigger('focus');
+    });
+
+    $(document).on('click', '.stat-form-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var $button = $(this);
+        var $card = $button.closest('.seo-stat-item');
+        var isOpen = $card.hasClass('form-open');
+
+        closeOptimisationDetails();
+        closeOptimisationActions($card);
+
+        $card.toggleClass('form-open', !isOpen);
+        $button.attr('aria-expanded', !isOpen ? 'true' : 'false');
+        $card.find('.stat-form-panel').attr('aria-hidden', !isOpen ? 'false' : 'true');
+    });
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.seo-stat-item.details-open').length) {
+            closeOptimisationDetails();
+        }
+
+        if (!$(e.target).closest('.stat-actions-menu, .stat-actions-menu-toggle, .stat-form-panel, .stat-form-toggle').length) {
+            closeOptimisationActions();
+        }
+    });
+
+    $(document).on('click', '[data-close-optimisation-form-modal]', function(e) {
+        e.preventDefault();
+        closeOptimisationFormModal();
+    });
+
+    $(document).on('keyup', function(e) {
+        if (e.key === 'Escape') {
+            closeOptimisationDetails();
+            closeOptimisationActions();
+            closeOptimisationFormModal();
+        }
+    });
+
     // Helper function to escape HTML
     function escapeHtml(text) {
         var map = {

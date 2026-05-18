@@ -59,8 +59,8 @@ function meta_description_boy_check_managewp_status() {
             'managewp_plugin_version' => '',
             'managewp_connected' => false,
             'status' => 'ManageWP Not Installed',
-            'message' => 'Consider installing ManageWP for centralized site management',
-            'class' => 'status-warning'
+            'message' => 'ManageWP is required for centralized site management',
+            'class' => 'status-error'
         );
     } elseif (!$managewp_connected) {
         return array(
@@ -70,7 +70,7 @@ function meta_description_boy_check_managewp_status() {
             'managewp_connected' => false,
             'status' => 'ManageWP Not Connected',
             'message' => $managewp_plugin_name . ' is active but not connected to ManageWP dashboard',
-            'class' => 'status-warning'
+            'class' => 'status-error'
         );
     } else {
         return array(

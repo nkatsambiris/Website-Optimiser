@@ -84,20 +84,35 @@ function meta_description_boy_admin_query_filter($query) {
             $meta_query = array();
         }
 
-        $meta_query[] = array(
-            'relation' => 'OR',
-            array(
-                'key' => '_yoast_wpseo_metadesc',
-                'compare' => 'NOT EXISTS'
-            ),
-            array(
-                'key' => '_yoast_wpseo_metadesc',
-                'value' => '',
-                'compare' => '='
-            )
+        $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
+        $meta_description_keys = array(
+            '_yoast_wpseo_metadesc',
+            'rank_math_description',
+            '_aioseo_description',
+            '_seopress_titles_desc',
+            'meta_description',
         );
 
+        $missing_meta_query = array('relation' => 'AND');
+
+        foreach ($meta_description_keys as $meta_description_key) {
+            $missing_meta_query[] = array(
+                'relation' => 'OR',
+                array(
+                    'key' => $meta_description_key,
+                    'compare' => 'NOT EXISTS'
+                ),
+                array(
+                    'key' => $meta_description_key,
+                    'value' => '',
+                    'compare' => '='
+                )
+            );
+        }
+
+        $meta_query[] = $missing_meta_query;
         $query->set('meta_query', $meta_query);
+        $query->set('post_type', $selected_post_types);
     }
 
     // Filter for H1 heading issues
@@ -156,7 +171,7 @@ function meta_description_boy_admin_query_filter($query) {
  */
 function meta_description_boy_filtered_view_notices() {
     if (get_query_var('meta_desc_missing')) {
-        echo '<div class="notice notice-info"><p><strong>Showing posts/pages missing meta descriptions.</strong> <a href="' . admin_url('edit.php') . '">View all posts</a></p></div>';
+        echo '<div class="notice notice-info"><p><strong>Showing selected post types missing meta descriptions.</strong> <a href="' . esc_url(admin_url('edit.php')) . '">Clear filter</a></p></div>';
     }
 
     if (get_query_var('h1_missing')) {

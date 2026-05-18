@@ -233,88 +233,10 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
             <div class="stat-action">
 
                 <?php if (!empty($forms_data)): ?>
-                    <div class="conversion-events-list" style="margin-top: 15px;">
-                        <div class="conversion-events-toggle" style="text-align: center;">
-                            <button type="button" class="button button-small" onclick="toggleConversionEventsList()">
-                                <span id="toggle-text">Show Forms</span> (<?php echo count($forms_data); ?>)
-                            </button>
-                        </div>
-
-                        <div id="conversion-events-forms" style="display: none; margin-top: 10px; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
-                            <?php foreach ($forms_data as $form): ?>
-                            <div class="conversion-event-form" style="padding: 12px; border-bottom: 1px solid #eee; background: #f9f9f9;" data-form-id="<?php echo $form['id']; ?>">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                                    <strong style="flex: 1;"><?php echo esc_html($form['title']); ?></strong>
-                                    <span class="status-indicator status-<?php echo $form['status']; ?>" style="
-                                        padding: 2px 8px;
-                                        border-radius: 12px;
-                                        font-size: 11px;
-                                        font-weight: bold;
-                                        text-transform: uppercase;
-                                        <?php
-                                        switch ($form['status']) {
-                                            case 'added':
-                                                echo 'background: #d4edda; color: #155724;';
-                                                break;
-                                            case 'not_required':
-                                                echo 'background: #d1ecf1; color: #0c5460;';
-                                                break;
-                                            default:
-                                                echo 'background: #fff3cd; color: #856404;';
-                                                break;
-                                        }
-                                        ?>
-                                    ">
-                                        <?php
-                                        switch ($form['status']) {
-                                            case 'added':
-                                                echo 'Added';
-                                                break;
-                                            case 'not_required':
-                                                echo 'Not Required';
-                                                break;
-                                            default:
-                                                echo 'Pending';
-                                                break;
-                                        }
-                                        ?>
-                                    </span>
-                                </div>
-
-                                <?php if ($form['status'] === 'added' && !empty($form['created_by'])): ?>
-                                    <small style="color: #666; display: block; margin-bottom: 8px;">
-                                        Added by: <strong><?php echo esc_html($form['created_by']); ?></strong>
-                                        <?php if (!empty($form['created_date'])): ?>
-                                            on <?php echo date('M j, Y', strtotime($form['created_date'])); ?>
-                                        <?php endif; ?>
-                                    </small>
-                                <?php endif; ?>
-
-                                <?php if (!empty($form['notes'])): ?>
-                                    <div style="background: #fff; padding: 8px; border-radius: 3px; margin-bottom: 8px;">
-                                        <small><strong>Notes:</strong> <?php echo esc_html($form['notes']); ?></small>
-                                    </div>
-                                <?php endif; ?>
-
-                                <div class="conversion-event-actions">
-                                    <?php if ($form['status'] === 'pending'): ?>
-                                        <button type="button" class="button button-small" onclick="showConversionEventForm(<?php echo $form['id']; ?>)">
-                                            Configure
-                                        </button>
-                                    <?php else: ?>
-                                        <button type="button" class="button button-small" onclick="showConversionEventForm(<?php echo $form['id']; ?>)">
-                                            Edit
-                                        </button>
-                                        <button type="button" class="button button-small" onclick="resetConversionEventStatus(<?php echo $form['id']; ?>)" style="margin-left: 5px;">
-                                            Reset
-                                        </button>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <?php endif; ?>
+                    <button type="button" class="button button-small" onclick="showConversionEventsListModal()">
+                        Show Forms (<?php echo count($forms_data); ?>)
+                    </button>
+                <?php endif; ?>
 
                 <?php if (!$conversion_status['gf_installed']): ?>
                     <!-- Gravity Forms is not installed -->
@@ -334,6 +256,86 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
             </div>
         </div>
     </div>
+
+    <?php if (!empty($forms_data)): ?>
+    <!-- Conversion Events Forms Modal -->
+    <div id="conversion-events-list-modal" class="conversion-event-modal" style="display: none;">
+        <div class="conversion-event-modal-content">
+            <div class="conversion-event-modal-header">
+                <h3>Conversion Event Forms</h3>
+                <span class="conversion-events-list-modal-close">&times;</span>
+            </div>
+            <div class="conversion-event-modal-body">
+                <div id="conversion-events-forms" class="conversion-events-forms">
+                    <?php foreach ($forms_data as $form): ?>
+                    <div
+                        class="conversion-event-form"
+                        data-form-id="<?php echo esc_attr($form['id']); ?>"
+                        data-form-title="<?php echo esc_attr($form['title']); ?>"
+                        data-form-status="<?php echo esc_attr($form['status']); ?>"
+                        data-created-by="<?php echo esc_attr($form['created_by']); ?>"
+                        data-notes="<?php echo esc_attr($form['notes']); ?>"
+                        role="button"
+                        tabindex="0">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <strong style="flex: 1;"><?php echo esc_html($form['title']); ?></strong>
+                            <span class="status-indicator status-<?php echo esc_attr($form['status']); ?>" style="
+                                padding: 2px 8px;
+                                border-radius: 12px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                text-transform: uppercase;
+                                <?php
+                                switch ($form['status']) {
+                                    case 'added':
+                                        echo 'background: #d4edda; color: #155724;';
+                                        break;
+                                    case 'not_required':
+                                        echo 'background: #d1ecf1; color: #0c5460;';
+                                        break;
+                                    default:
+                                        echo 'background: #fff3cd; color: #856404;';
+                                        break;
+                                }
+                                ?>
+                            ">
+                                <?php
+                                switch ($form['status']) {
+                                    case 'added':
+                                        echo 'Added';
+                                        break;
+                                    case 'not_required':
+                                        echo 'Not Required';
+                                        break;
+                                    default:
+                                        echo 'Pending';
+                                        break;
+                                }
+                                ?>
+                            </span>
+                        </div>
+
+                        <?php if ($form['status'] === 'added' && !empty($form['created_by'])): ?>
+                            <small style="color: #666; display: block; margin-bottom: 8px;">
+                                Added by: <strong><?php echo esc_html($form['created_by']); ?></strong>
+                                <?php if (!empty($form['created_date'])): ?>
+                                    on <?php echo date('M j, Y', strtotime($form['created_date'])); ?>
+                                <?php endif; ?>
+                            </small>
+                        <?php endif; ?>
+
+                        <?php if (!empty($form['notes'])): ?>
+                            <div style="background: #fff; padding: 8px; border-radius: 3px; margin-bottom: 8px;">
+                                <small><strong>Notes:</strong> <?php echo esc_html($form['notes']); ?></small>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Conversion Event Configuration Modal -->
     <div id="conversion-event-modal" class="conversion-event-modal" style="display: none;">
@@ -372,6 +374,9 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
                     <div class="form-actions">
                         <button type="submit" class="button button-primary">
                             Save Configuration
+                        </button>
+                        <button type="button" class="button button-secondary conversion-event-modal-reset" style="display: none;">
+                            Reset
                         </button>
                         <button type="button" class="button button-secondary conversion-event-modal-cancel">
                             Cancel
@@ -421,7 +426,8 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
         color: #23282d;
     }
 
-    .conversion-event-modal-close {
+    .conversion-event-modal-close,
+    .conversion-events-list-modal-close {
         font-size: 28px;
         font-weight: bold;
         cursor: pointer;
@@ -429,12 +435,38 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
         line-height: 1;
     }
 
-    .conversion-event-modal-close:hover {
+    .conversion-event-modal-close:hover,
+    .conversion-events-list-modal-close:hover {
         color: #dc3232;
     }
 
     .conversion-event-modal-body {
         padding: 20px;
+    }
+
+    .conversion-events-forms {
+        max-height: 60vh;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .conversion-event-form {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+        background: #f9f9f9;
+        cursor: pointer;
+    }
+
+    .conversion-event-form:last-child {
+        border-bottom: 0;
+    }
+
+    .conversion-event-form:hover,
+    .conversion-event-form:focus {
+        background: #fff !important;
+        outline: 2px solid #2271b1;
+        outline-offset: -2px;
     }
 
     .conversion-event-status-message {
@@ -465,42 +497,51 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
     </style>
 
     <script>
-    let currentFormData = {};
+    function showConversionEventsListModal() {
+        const modal = document.getElementById('conversion-events-list-modal');
 
-    function toggleConversionEventsList() {
-        const formsList = document.getElementById('conversion-events-forms');
-        const toggleText = document.getElementById('toggle-text');
-
-        if (formsList.style.display === 'none') {
-            formsList.style.display = 'block';
-            toggleText.textContent = 'Hide Forms';
-        } else {
-            formsList.style.display = 'none';
-            toggleText.textContent = 'Show Forms';
+        if (modal) {
+            modal.style.display = 'block';
         }
     }
 
     function showConversionEventForm(formId) {
-        // Find form data
         const formElement = document.querySelector(`[data-form-id="${formId}"]`);
-        const formTitle = formElement.querySelector('strong').textContent;
-        const statusIndicator = formElement.querySelector('.status-indicator');
-        const currentStatus = statusIndicator.classList.contains('status-added') ? 'added' :
-                            statusIndicator.classList.contains('status-not_required') ? 'not_required' : 'pending';
+        if (!formElement) {
+            return;
+        }
+
+        const formTitle = formElement.dataset.formTitle || formElement.querySelector('strong').textContent;
+        const currentStatus = formElement.dataset.formStatus || 'pending';
+        const createdBy = formElement.dataset.createdBy || '';
+        const notes = formElement.dataset.notes || '';
+        const resetButton = document.querySelector('.conversion-event-modal-reset');
+        const modalTitle = document.querySelector('#conversion-event-modal .conversion-event-modal-header h3');
 
         // Populate modal
         document.getElementById('conversion-event-form-id').value = formId;
         document.getElementById('conversion-event-form-title').textContent = formTitle;
         document.getElementById('conversion-event-status').value = currentStatus;
+        document.getElementById('conversion-event-created-by').value = createdBy;
+        document.getElementById('conversion-event-notes').value = notes;
 
-        // Clear fields
-        document.getElementById('conversion-event-created-by').value = '';
-        document.getElementById('conversion-event-notes').value = '';
+        if (modalTitle) {
+            modalTitle.textContent = currentStatus === 'pending' ? 'Configure Conversion Event' : 'Edit Conversion Event';
+        }
+
+        if (resetButton) {
+            resetButton.style.display = currentStatus === 'pending' ? 'none' : '';
+        }
 
         // Toggle created_by field visibility
         toggleCreatedByField(currentStatus);
 
         // Show modal
+        const listModal = document.getElementById('conversion-events-list-modal');
+        if (listModal) {
+            listModal.style.display = 'none';
+        }
+
         document.getElementById('conversion-event-modal').style.display = 'block';
     }
 
@@ -555,12 +596,34 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
 
         // Modal close events
         const modal = document.getElementById('conversion-event-modal');
+        const listModal = document.getElementById('conversion-events-list-modal');
         const closeBtn = document.querySelector('.conversion-event-modal-close');
+        const listCloseBtn = document.querySelector('.conversion-events-list-modal-close');
         const cancelBtn = document.querySelector('.conversion-event-modal-cancel');
+        const resetBtn = document.querySelector('.conversion-event-modal-reset');
+
+        document.querySelectorAll('.conversion-event-form').forEach(function(formRow) {
+            formRow.addEventListener('click', function() {
+                showConversionEventForm(this.dataset.formId);
+            });
+
+            formRow.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    showConversionEventForm(this.dataset.formId);
+                }
+            });
+        });
 
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
                 modal.style.display = 'none';
+            });
+        }
+
+        if (listCloseBtn) {
+            listCloseBtn.addEventListener('click', function() {
+                listModal.style.display = 'none';
             });
         }
 
@@ -570,10 +633,20 @@ function meta_description_boy_render_gravity_forms_conversion_events_section() {
             });
         }
 
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                resetConversionEventStatus(document.getElementById('conversion-event-form-id').value);
+            });
+        }
+
         // Close modal when clicking outside
         window.addEventListener('click', function(event) {
             if (event.target === modal) {
                 modal.style.display = 'none';
+            }
+
+            if (event.target === listModal) {
+                listModal.style.display = 'none';
             }
         });
 
