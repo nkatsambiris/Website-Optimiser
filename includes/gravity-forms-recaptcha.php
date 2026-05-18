@@ -192,6 +192,7 @@ function meta_description_boy_check_gravity_forms_recaptcha_status() {
  */
 function meta_description_boy_render_gravity_forms_recaptcha_section() {
     $recaptcha_status = meta_description_boy_check_gravity_forms_recaptcha_status();
+    $recaptcha_keys_url = 'https://www.google.com/recaptcha/admin/create';
     ?>
     <div class="seo-stat-item <?php echo $recaptcha_status['class']; ?>">
         <div class="stat-icon">🔒</div>
@@ -202,6 +203,7 @@ function meta_description_boy_render_gravity_forms_recaptcha_section() {
             </div>
             <div class="stat-label">
                 <?php echo $recaptcha_status['message']; ?>
+                <br><small><a href="<?php echo esc_url($recaptcha_keys_url); ?>" target="_blank" rel="noopener noreferrer">Generate API keys</a></small>
                 <?php if (!empty($recaptcha_status['gf_version'])): ?>
                     <br><small>Gravity Forms: v<?php echo $recaptcha_status['gf_version']; ?></small>
                 <?php endif; ?>

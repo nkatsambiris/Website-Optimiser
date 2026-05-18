@@ -26,6 +26,8 @@ function meta_description_boy_load_section_includes() {
     $dir = plugin_dir_path(__FILE__) . 'includes/';
     require_once $dir . 'robots-txt.php';
     require_once $dir . 'xml-sitemap.php';
+    require_once $dir . 'google-search-console-sitemap.php';
+    require_once $dir . 'yoast-seo.php';
     require_once $dir . 'google-site-kit.php';
     require_once $dir . 'wp-smush.php';
     require_once $dir . 'wordfence-security.php';
@@ -34,6 +36,7 @@ function meta_description_boy_load_section_includes() {
     require_once $dir . 'gravity-forms-confirmations.php';
     require_once $dir . 'gravity-forms-conversion-events.php';
     require_once $dir . 'redirects.php';
+    require_once $dir . 'url-search-replace.php';
     require_once $dir . 'hubspot.php';
     require_once $dir . 'meta-pixel.php';
     require_once $dir . 'managewp.php';
@@ -186,6 +189,8 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_featured_images_section();
         meta_description_boy_render_robots_txt_section();
         meta_description_boy_render_xml_sitemap_section();
+        meta_description_boy_render_google_search_console_sitemap_section();
+        website_optimiser_render_yoast_seo_section();
         meta_description_boy_render_google_site_kit_section();
         meta_description_boy_render_wp_smush_section();
         meta_description_boy_render_wordfence_section();
@@ -194,6 +199,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_gravity_forms_confirmations_section();
         meta_description_boy_render_gravity_forms_conversion_events_section();
         meta_description_boy_render_redirects_section();
+        website_optimiser_render_url_search_replace_section();
         meta_description_boy_render_hubspot_section();
         meta_description_boy_render_meta_pixel_section();
         meta_description_boy_render_managewp_section();
@@ -284,6 +290,12 @@ function meta_description_boy_get_seo_summary() {
     if (function_exists('meta_description_boy_check_sitemap')) {
         $statuses[] = meta_description_boy_check_sitemap();
     }
+    if (function_exists('meta_description_boy_check_google_search_console_sitemap_status')) {
+        $statuses[] = meta_description_boy_check_google_search_console_sitemap_status();
+    }
+    if (function_exists('website_optimiser_check_yoast_seo_status')) {
+        $statuses[] = website_optimiser_check_yoast_seo_status();
+    }
     if (function_exists('meta_description_boy_check_google_site_kit_status')) {
         $statuses[] = meta_description_boy_check_google_site_kit_status();
     }
@@ -307,6 +319,9 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('meta_description_boy_check_redirects_status')) {
         $statuses[] = meta_description_boy_check_redirects_status();
+    }
+    if (function_exists('website_optimiser_check_url_search_replace_status')) {
+        $statuses[] = website_optimiser_check_url_search_replace_status();
     }
     if (function_exists('meta_description_boy_check_hubspot_status')) {
         $statuses[] = meta_description_boy_check_hubspot_status();

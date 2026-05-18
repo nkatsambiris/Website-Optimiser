@@ -15,6 +15,9 @@ It is currently compatible with ACF, WooCommerce, and the default Classic Editor
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 2.0.1 Changes
+- NEW: Add new modules for Google Search Console Sitemap and Yoast SEO, and enhance caching plugin recommendations in the dashboard widget.
+
 ## Version 2.0.0 Changes
 - FIX: Improvements to code quality and speed optimisation
 

@@ -18,14 +18,6 @@ function meta_description_boy_check_caching_plugins_status() {
     $installed_plugins = array();
     $active_plugins = array();
 
-    // Check for Autoptimize
-    if (is_plugin_active('autoptimize/autoptimize.php')) {
-        $active_plugins[] = 'Autoptimize';
-        $installed_plugins[] = 'Autoptimize';
-    } elseif (file_exists(WP_PLUGIN_DIR . '/autoptimize/autoptimize.php')) {
-        $installed_plugins[] = 'Autoptimize (inactive)';
-    }
-
     // Check for Breeze
     if (is_plugin_active('breeze/breeze.php')) {
         $active_plugins[] = 'Breeze';
@@ -69,7 +61,7 @@ function meta_description_boy_check_caching_plugins_status() {
         return array(
             'class' => 'status-error',
             'text' => 'No caching plugin found',
-            'description' => 'Consider installing Autoptimize, Breeze, or Seraphinite Accelerator',
+            'description' => 'Consider installing Breeze or Seraphinite Accelerator',
             'has_caching' => false,
             'active_plugins' => array(),
             'installed_plugins' => array()
@@ -119,11 +111,11 @@ function meta_description_boy_render_caching_plugins_section() {
                         Activate Plugin
                     </a>
                 <?php else: ?>
-                    <a href="<?php echo admin_url('plugin-install.php?s=autoptimize&tab=search&type=term'); ?>" class="button button-primary button-small">
-                        Install Autoptimize
-                    </a>
-                    <a href="<?php echo admin_url('plugin-install.php?s=breeze&tab=search&type=term'); ?>" class="button button-small" style="margin-left: 5px;">
+                    <a href="<?php echo admin_url('plugin-install.php?s=breeze&tab=search&type=term'); ?>" class="button button-primary button-small">
                         Install Breeze
+                    </a>
+                    <a href="https://www.s-sols.com/products/wordpress/accelerator" class="button button-small" target="_blank" rel="noopener noreferrer" style="margin-left: 5px;">
+                        Install Seraphinite Accelerator
                     </a>
                 <?php endif; ?>
             </div>
