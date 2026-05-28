@@ -7,7 +7,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Get the suggested old development URL for this site.
+ * Get a suggested old development URL for this site, for display purposes only.
  */
 function website_optimiser_get_suggested_development_url() {
     $live_url = home_url();
@@ -24,75 +24,19 @@ function website_optimiser_get_suggested_development_url() {
 }
 
 /**
- * Escape a database identifier that came from WordPress database metadata.
- */
-function website_optimiser_escape_db_identifier($identifier) {
-    return str_replace('`', '``', $identifier);
-}
-
-/**
- * Scan WordPress database tables for development URLs.
- */
-function website_optimiser_scan_development_urls() {
-    $cached = get_transient('website_optimiser_development_url_scan');
-    if ($cached !== false && is_array($cached)) {
-        return $cached;
-    }
-
-    global $wpdb;
-
-    $search_pattern = '%://dev.%';
-    $matching_tables = array();
-    $matches = 0;
-    $tables = (array) $wpdb->get_col($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($wpdb->prefix) . '%'));
-
-    foreach ($tables as $table) {
-        $table_name = website_optimiser_escape_db_identifier($table);
-        $columns = (array) $wpdb->get_results('SHOW COLUMNS FROM `' . $table_name . '`');
-
-        foreach ($columns as $column) {
-            if (empty($column->Field) || empty($column->Type)) {
-                continue;
-            }
-
-            if (!preg_match('/char|text|blob|json/i', $column->Type)) {
-                continue;
-            }
-
-            $column_name = website_optimiser_escape_db_identifier($column->Field);
-            $count = (int) $wpdb->get_var(
-                $wpdb->prepare(
-                    'SELECT COUNT(*) FROM `' . $table_name . '` WHERE `' . $column_name . '` LIKE %s',
-                    $search_pattern
-                )
-            );
-
-            if ($count > 0) {
-                $matches += $count;
-                $matching_tables[$table] = true;
-            }
-        }
-    }
-
-    $result = array(
-        'matches' => $matches,
-        'tables' => array_keys($matching_tables),
-    );
-
-    set_transient('website_optimiser_development_url_scan', $result, 10 * MINUTE_IN_SECONDS);
-
-    return $result;
-}
-
-/**
- * Check Better Search Replace status and whether development URLs remain.
+ * Check Better Search Replace status.
+ *
+ * Completion is determined solely by the manual user confirmation. Automated
+ * dev-URL detection is intentionally avoided because development hostnames vary
+ * between projects (dev., staging., *.local, *.test, etc.) and any exact match
+ * would be unreliable.
  */
 function website_optimiser_check_url_search_replace_status() {
     if (!function_exists('is_plugin_active')) {
         require_once(ABSPATH . 'wp-admin/includes/plugin.php');
     }
 
-    $confirmed = get_option('website_optimiser_url_search_replace_confirmed', false);
+    $confirmed = (bool) get_option('website_optimiser_url_search_replace_confirmed', false);
     $confirmed_by = get_option('website_optimiser_url_search_replace_confirmed_by', '');
     $confirmed_date = get_option('website_optimiser_url_search_replace_confirmed_date', '');
     $plugin = 'better-search-replace/better-search-replace.php';
@@ -101,160 +45,52 @@ function website_optimiser_check_url_search_replace_status() {
     $version = '';
     $live_url = home_url();
     $suggested_old_url = website_optimiser_get_suggested_development_url();
-    $scan = website_optimiser_scan_development_urls();
-    $current_site_is_dev = (bool) preg_match('/:\/\/dev\./i', $live_url);
 
     if ($installed) {
         $plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin);
         $version = $plugin_data['Version'] ?? '';
     }
 
-    if (!$installed) {
-        return array(
-            'installed' => false,
-            'active' => false,
-            'version' => '',
-            'live_url' => $live_url,
-            'suggested_old_url' => $suggested_old_url,
-            'dev_matches' => $scan['matches'],
-            'dev_tables' => $scan['tables'],
-            'confirmed' => false,
-            'confirmed_by' => '',
-            'confirmed_date' => '',
-            'status' => 'Plugin Missing',
-            'message' => 'Better Search Replace is not installed',
-            'class' => 'status-error'
-        );
-    }
-
-    if (!$active) {
-        return array(
-            'installed' => true,
-            'active' => false,
-            'version' => $version,
-            'live_url' => $live_url,
-            'suggested_old_url' => $suggested_old_url,
-            'dev_matches' => $scan['matches'],
-            'dev_tables' => $scan['tables'],
-            'confirmed' => false,
-            'confirmed_by' => '',
-            'confirmed_date' => '',
-            'status' => 'Plugin Inactive',
-            'message' => 'Better Search Replace is installed but not activated',
-            'class' => 'status-warning'
-        );
-    }
-
-    // Honour the saved confirmation before flagging dev URL detections. Once an
-    // admin has confirmed completion, the module should stay marked as complete
-    // even if the scan later picks up stray references (which become a
-    // non-blocking warning) or the live URL still resolves to a dev host
-    // (e.g. on intentionally dev-hosted environments).
-    if ($confirmed) {
-        if ($current_site_is_dev) {
-            return array(
-                'installed' => true,
-                'active' => true,
-                'version' => $version,
-                'live_url' => $live_url,
-                'suggested_old_url' => $suggested_old_url,
-                'dev_matches' => $scan['matches'],
-                'dev_tables' => $scan['tables'],
-                'confirmed' => true,
-                'confirmed_by' => $confirmed_by,
-                'confirmed_date' => $confirmed_date,
-                'status' => 'Confirmed (Dev Site)',
-                'message' => 'URL search and replace confirmed, but the live URL still appears to be a development URL',
-                'class' => 'status-warning'
-            );
-        }
-
-        if ($scan['matches'] > 0) {
-            return array(
-                'installed' => true,
-                'active' => true,
-                'version' => $version,
-                'live_url' => $live_url,
-                'suggested_old_url' => $suggested_old_url,
-                'dev_matches' => $scan['matches'],
-                'dev_tables' => $scan['tables'],
-                'confirmed' => true,
-                'confirmed_by' => $confirmed_by,
-                'confirmed_date' => $confirmed_date,
-                'status' => 'Confirmed (Dev URLs Remain)',
-                'message' => 'URL search and replace confirmed, but some dev URL references still remain in the database',
-                'class' => 'status-warning'
-            );
-        }
-
-        return array(
-            'installed' => true,
-            'active' => true,
-            'version' => $version,
-            'live_url' => $live_url,
-            'suggested_old_url' => $suggested_old_url,
-            'dev_matches' => 0,
-            'dev_tables' => array(),
-            'confirmed' => true,
-            'confirmed_by' => $confirmed_by,
-            'confirmed_date' => $confirmed_date,
-            'status' => 'Search Replace Confirmed',
-            'message' => 'URL search and replace has been confirmed and no dev URL references were found',
-            'class' => 'status-good'
-        );
-    }
-
-    if ($current_site_is_dev) {
-        return array(
-            'installed' => true,
-            'active' => true,
-            'version' => $version,
-            'live_url' => $live_url,
-            'suggested_old_url' => $suggested_old_url,
-            'dev_matches' => $scan['matches'],
-            'dev_tables' => $scan['tables'],
-            'confirmed' => false,
-            'confirmed_by' => '',
-            'confirmed_date' => '',
-            'status' => 'Development URL Active',
-            'message' => 'The current site URL still appears to be a development URL',
-            'class' => 'status-error'
-        );
-    }
-
-    if ($scan['matches'] > 0) {
-        return array(
-            'installed' => true,
-            'active' => true,
-            'version' => $version,
-            'live_url' => $live_url,
-            'suggested_old_url' => $suggested_old_url,
-            'dev_matches' => $scan['matches'],
-            'dev_tables' => $scan['tables'],
-            'confirmed' => false,
-            'confirmed_by' => '',
-            'confirmed_date' => '',
-            'status' => 'Dev URLs Found',
-            'message' => 'Development URL references were found in the database',
-            'class' => 'status-warning'
-        );
-    }
-
-    return array(
-        'installed' => true,
-        'active' => true,
+    $base = array(
+        'installed' => $installed,
+        'active' => $active,
         'version' => $version,
         'live_url' => $live_url,
         'suggested_old_url' => $suggested_old_url,
-        'dev_matches' => 0,
-        'dev_tables' => array(),
-        'confirmed' => false,
-        'confirmed_by' => '',
-        'confirmed_date' => '',
+        'confirmed' => $confirmed,
+        'confirmed_by' => $confirmed ? $confirmed_by : '',
+        'confirmed_date' => $confirmed ? $confirmed_date : '',
+    );
+
+    if (!$installed) {
+        return array_merge($base, array(
+            'status' => 'Plugin Missing',
+            'message' => 'Better Search Replace is not installed',
+            'class' => 'status-error',
+        ));
+    }
+
+    if (!$active) {
+        return array_merge($base, array(
+            'status' => 'Plugin Inactive',
+            'message' => 'Better Search Replace is installed but not activated',
+            'class' => 'status-warning',
+        ));
+    }
+
+    if ($confirmed) {
+        return array_merge($base, array(
+            'status' => 'Search Replace Confirmed',
+            'message' => 'URL search and replace has been confirmed',
+            'class' => 'status-good',
+        ));
+    }
+
+    return array_merge($base, array(
         'status' => 'Confirmation Pending',
         'message' => 'Please confirm that URL search and replace has been completed',
-        'class' => 'status-warning'
-    );
+        'class' => 'status-warning',
+    ));
 }
 
 /**
@@ -274,7 +110,6 @@ function website_optimiser_confirm_url_search_replace() {
     update_option('website_optimiser_url_search_replace_confirmed', true);
     update_option('website_optimiser_url_search_replace_confirmed_by', $confirmed_by);
     update_option('website_optimiser_url_search_replace_confirmed_date', current_time('mysql'));
-    delete_transient('website_optimiser_development_url_scan');
 
     wp_die(wp_json_encode(array('success' => true, 'message' => 'URL search and replace confirmation saved')));
 }
@@ -291,7 +126,6 @@ function website_optimiser_reset_url_search_replace_confirmation() {
     delete_option('website_optimiser_url_search_replace_confirmed');
     delete_option('website_optimiser_url_search_replace_confirmed_by');
     delete_option('website_optimiser_url_search_replace_confirmed_date');
-    delete_transient('website_optimiser_development_url_scan');
 
     wp_die(wp_json_encode(array('success' => true, 'message' => 'URL search and replace confirmation reset')));
 }
@@ -316,14 +150,13 @@ function website_optimiser_render_url_search_replace_section() {
                 <?php if (!empty($status['version'])): ?>
                     <br><small>Better Search Replace: v<?php echo esc_html($status['version']); ?></small>
                 <?php endif; ?>
-                <br><small>Search for: <code><?php echo esc_html($status['suggested_old_url']); ?></code></small>
+                <br><small>Example search for: <code><?php echo esc_html($status['suggested_old_url']); ?></code></small>
                 <br><small>Replace with: <code><?php echo esc_html($status['live_url']); ?></code></small>
-                <?php if ($status['dev_matches'] > 0): ?>
-                    <br><small>Detected <?php echo esc_html($status['dev_matches']); ?> dev URL reference(s) across <?php echo esc_html(count($status['dev_tables'])); ?> table(s).</small>
-                <?php endif; ?>
                 <?php if ($status['confirmed']): ?>
                     <br><br><small><strong>Confirmed by:</strong> <?php echo esc_html($status['confirmed_by']); ?></small>
-                    <br><small><strong>Date:</strong> <?php echo esc_html(date('M j, Y g:i A', strtotime($status['confirmed_date']))); ?></small>
+                    <?php if (!empty($status['confirmed_date'])): ?>
+                        <br><small><strong>Date:</strong> <?php echo esc_html(date('M j, Y g:i A', strtotime($status['confirmed_date']))); ?></small>
+                    <?php endif; ?>
                 <?php endif; ?>
                 <br><br><small><em>Run a dry run first, then run live once the results look right.</em></small>
             </div>
@@ -355,7 +188,7 @@ function website_optimiser_render_url_search_replace_section() {
                             <div style="margin-bottom: 12px; font-size: 13px; color: #666;">
                                 <strong>Confirm after completing:</strong><br>
                                 &bull; Run a dry run in Better Search Replace<br>
-                                &bull; Replace <code><?php echo esc_html($status['suggested_old_url']); ?></code> with <code><?php echo esc_html($status['live_url']); ?></code><br>
+                                &bull; Replace your old development URL with <code><?php echo esc_html($status['live_url']); ?></code><br>
                                 &bull; Run the live search and replace once the dry run looks correct
                             </div>
                             <label style="display: block; margin-bottom: 8px;">
