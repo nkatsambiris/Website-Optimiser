@@ -145,6 +145,65 @@ function website_optimiser_check_url_search_replace_status() {
         );
     }
 
+    // Honour the saved confirmation before flagging dev URL detections. Once an
+    // admin has confirmed completion, the module should stay marked as complete
+    // even if the scan later picks up stray references (which become a
+    // non-blocking warning) or the live URL still resolves to a dev host
+    // (e.g. on intentionally dev-hosted environments).
+    if ($confirmed) {
+        if ($current_site_is_dev) {
+            return array(
+                'installed' => true,
+                'active' => true,
+                'version' => $version,
+                'live_url' => $live_url,
+                'suggested_old_url' => $suggested_old_url,
+                'dev_matches' => $scan['matches'],
+                'dev_tables' => $scan['tables'],
+                'confirmed' => true,
+                'confirmed_by' => $confirmed_by,
+                'confirmed_date' => $confirmed_date,
+                'status' => 'Confirmed (Dev Site)',
+                'message' => 'URL search and replace confirmed, but the live URL still appears to be a development URL',
+                'class' => 'status-warning'
+            );
+        }
+
+        if ($scan['matches'] > 0) {
+            return array(
+                'installed' => true,
+                'active' => true,
+                'version' => $version,
+                'live_url' => $live_url,
+                'suggested_old_url' => $suggested_old_url,
+                'dev_matches' => $scan['matches'],
+                'dev_tables' => $scan['tables'],
+                'confirmed' => true,
+                'confirmed_by' => $confirmed_by,
+                'confirmed_date' => $confirmed_date,
+                'status' => 'Confirmed (Dev URLs Remain)',
+                'message' => 'URL search and replace confirmed, but some dev URL references still remain in the database',
+                'class' => 'status-warning'
+            );
+        }
+
+        return array(
+            'installed' => true,
+            'active' => true,
+            'version' => $version,
+            'live_url' => $live_url,
+            'suggested_old_url' => $suggested_old_url,
+            'dev_matches' => 0,
+            'dev_tables' => array(),
+            'confirmed' => true,
+            'confirmed_by' => $confirmed_by,
+            'confirmed_date' => $confirmed_date,
+            'status' => 'Search Replace Confirmed',
+            'message' => 'URL search and replace has been confirmed and no dev URL references were found',
+            'class' => 'status-good'
+        );
+    }
+
     if ($current_site_is_dev) {
         return array(
             'installed' => true,
@@ -181,24 +240,6 @@ function website_optimiser_check_url_search_replace_status() {
         );
     }
 
-    if (!$confirmed) {
-        return array(
-            'installed' => true,
-            'active' => true,
-            'version' => $version,
-            'live_url' => $live_url,
-            'suggested_old_url' => $suggested_old_url,
-            'dev_matches' => 0,
-            'dev_tables' => array(),
-            'confirmed' => false,
-            'confirmed_by' => '',
-            'confirmed_date' => '',
-            'status' => 'Confirmation Pending',
-            'message' => 'Please confirm that URL search and replace has been completed',
-            'class' => 'status-warning'
-        );
-    }
-
     return array(
         'installed' => true,
         'active' => true,
@@ -207,12 +248,12 @@ function website_optimiser_check_url_search_replace_status() {
         'suggested_old_url' => $suggested_old_url,
         'dev_matches' => 0,
         'dev_tables' => array(),
-        'confirmed' => true,
-        'confirmed_by' => $confirmed_by,
-        'confirmed_date' => $confirmed_date,
-        'status' => 'Search Replace Confirmed',
-        'message' => 'URL search and replace has been confirmed and no dev URL references were found',
-        'class' => 'status-good'
+        'confirmed' => false,
+        'confirmed_by' => '',
+        'confirmed_date' => '',
+        'status' => 'Confirmation Pending',
+        'message' => 'Please confirm that URL search and replace has been completed',
+        'class' => 'status-warning'
     );
 }
 
