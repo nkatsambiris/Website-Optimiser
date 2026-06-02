@@ -123,6 +123,7 @@ function meta_description_boy_uninstall() {
     delete_option('meta_description_boy_h1_detailed_results');
     delete_transient('meta_description_boy_sitemap_check');
     delete_transient('meta_description_boy_robots_check');
+    delete_transient('meta_description_boy_llms_check');
     delete_transient('meta_description_boy_meta_description_stats');
     delete_transient('meta_description_boy_alt_text_stats');
     delete_transient('meta_description_boy_featured_image_stats');
@@ -1128,6 +1129,9 @@ function meta_description_boy_handle_clear_cache() {
     meta_description_boy_force_clear_h1_cache();
     meta_description_boy_clear_sitemap_cache();
     meta_description_boy_clear_robots_cache();
+    if (function_exists('meta_description_boy_clear_llms_cache')) {
+        meta_description_boy_clear_llms_cache();
+    }
 
     // Clear meta description cache if it exists
     delete_transient('meta_description_boy_meta_description_stats');
@@ -1157,6 +1161,9 @@ function meta_description_boy_handle_refresh_analysis() {
     // Clear caches first
     meta_description_boy_clear_sitemap_cache();
     meta_description_boy_clear_robots_cache();
+    if (function_exists('meta_description_boy_clear_llms_cache')) {
+        meta_description_boy_clear_llms_cache();
+    }
     meta_description_boy_force_clear_h1_cache();
 
     // Re-run the H1 analysis so results are stored in the database
@@ -1165,6 +1172,9 @@ function meta_description_boy_handle_refresh_analysis() {
     }
     if (function_exists('meta_description_boy_check_sitemap')) {
         meta_description_boy_check_sitemap();
+    }
+    if (function_exists('meta_description_boy_check_llms_txt')) {
+        meta_description_boy_check_llms_txt();
     }
 
     wp_send_json_success(array('message' => 'Analysis refreshed successfully'));

@@ -25,6 +25,7 @@ function meta_description_boy_load_section_includes() {
 
     $dir = plugin_dir_path(__FILE__) . 'includes/';
     require_once $dir . 'robots-txt.php';
+    require_once $dir . 'llms-txt.php';
     require_once $dir . 'xml-sitemap.php';
     require_once $dir . 'google-search-console-sitemap.php';
     require_once $dir . 'yoast-seo.php';
@@ -189,6 +190,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_h1_headings_section();
         meta_description_boy_render_featured_images_section();
         meta_description_boy_render_robots_txt_section();
+        meta_description_boy_render_llms_txt_section();
         meta_description_boy_render_xml_sitemap_section();
         meta_description_boy_render_google_search_console_sitemap_section();
         website_optimiser_render_yoast_seo_section();
@@ -288,6 +290,9 @@ function meta_description_boy_get_seo_summary() {
     // Component status functions
     if (function_exists('meta_description_boy_check_robots_txt')) {
         $statuses[] = meta_description_boy_check_robots_txt();
+    }
+    if (function_exists('meta_description_boy_check_llms_txt')) {
+        $statuses[] = meta_description_boy_check_llms_txt();
     }
     if (function_exists('meta_description_boy_check_sitemap')) {
         $statuses[] = meta_description_boy_check_sitemap();
@@ -453,7 +458,7 @@ function meta_description_boy_get_seo_summary() {
                 $errors++;
             }
         } elseif (isset($status['exists'])) {
-            // Handle robots.txt and sitemap status format
+            // Handle robots.txt, llms.txt, and sitemap status format
             if ($status['exists'] === true) {
                 $optimized_checks++;
             } else {

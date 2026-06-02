@@ -34,6 +34,7 @@ Website Optimiser registers abilities on WordPress 6.9+ (or when the [Abilities 
 | `website-optimiser/get-images-without-alt-text` | List images missing alt text (`limit` input) |
 | `website-optimiser/detect-seo-plugins` | Active SEO plugins on the site |
 | `website-optimiser/check-robots-txt` | robots.txt availability check |
+| `website-optimiser/check-llms-txt` | llms.txt availability check |
 | `website-optimiser/check-xml-sitemap` | XML sitemap availability check |
 | `website-optimiser/get-ai-config-status` | AI enabled, key configured, model ID (no secrets) |
 | `website-optimiser/generate-meta-description` | Generate meta description (`post_id`) |

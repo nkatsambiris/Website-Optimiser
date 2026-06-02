@@ -61,6 +61,7 @@ function website_optimiser_abilities_load_full_dependencies() {
 	$dir = plugin_dir_path( dirname( __FILE__ ) ) . 'includes/';
 	$files = array(
 		'robots-txt.php',
+		'llms-txt.php',
 		'xml-sitemap.php',
 		'google-search-console-sitemap.php',
 		'yoast-seo.php',
@@ -343,6 +344,7 @@ function website_optimiser_abilities_get_check_callbacks() {
 
 	$checks = array(
 		'robots_txt'                    => 'meta_description_boy_check_robots_txt',
+		'llms_txt'                      => 'meta_description_boy_check_llms_txt',
 		'xml_sitemap'                   => 'meta_description_boy_check_sitemap',
 		'google_search_console_sitemap' => 'meta_description_boy_check_google_search_console_sitemap_status',
 		'yoast_seo'                     => 'website_optimiser_check_yoast_seo_status',
@@ -566,6 +568,9 @@ function website_optimiser_ability_execute_clear_optimisation_cache() {
 	if ( function_exists( 'meta_description_boy_clear_robots_cache' ) ) {
 		meta_description_boy_clear_robots_cache();
 	}
+	if ( function_exists( 'meta_description_boy_clear_llms_cache' ) ) {
+		meta_description_boy_clear_llms_cache();
+	}
 
 	delete_transient( 'meta_description_boy_meta_description_stats' );
 	delete_transient( 'meta_description_boy_alt_text_stats' );
@@ -590,6 +595,21 @@ function website_optimiser_ability_execute_check_robots_txt() {
 	}
 
 	return meta_description_boy_check_robots_txt();
+}
+
+/**
+ * Execute: llms.txt check.
+ *
+ * @return array|WP_Error
+ */
+function website_optimiser_ability_execute_check_llms_txt() {
+	website_optimiser_abilities_load_full_dependencies();
+
+	if ( ! function_exists( 'meta_description_boy_check_llms_txt' ) ) {
+		return new WP_Error( 'dependency_missing', __( 'LLMs.txt check is unavailable.' ), array( 'status' => 500 ) );
+	}
+
+	return meta_description_boy_check_llms_txt();
 }
 
 /**
@@ -925,7 +945,7 @@ function website_optimiser_register_abilities() {
 		'website-optimiser/clear-optimisation-cache',
 		array(
 			'label'               => __( 'Clear Optimisation Cache', 'website-optimiser' ),
-			'description'         => __( 'Clears Website Optimiser transients and cached analysis data (H1, robots.txt, sitemap, stats).', 'website-optimiser' ),
+			'description'         => __( 'Clears Website Optimiser transients and cached analysis data (H1, robots.txt, llms.txt, sitemap, stats).', 'website-optimiser' ),
 			'category'            => 'website-optimiser',
 			'output_schema'       => array(
 				'type'       => 'object',
@@ -948,6 +968,19 @@ function website_optimiser_register_abilities() {
 			'category'            => 'website-optimiser',
 			'output_schema'       => website_optimiser_abilities_generic_object_schema(),
 			'execute_callback'    => 'website_optimiser_ability_execute_check_robots_txt',
+			'permission_callback' => 'website_optimiser_abilities_can_manage',
+			'meta'                => $readonly_meta,
+		)
+	);
+
+	wp_register_ability(
+		'website-optimiser/check-llms-txt',
+		array(
+			'label'               => __( 'Check llms.txt', 'website-optimiser' ),
+			'description'         => __( 'Checks whether llms.txt exists and is accessible.', 'website-optimiser' ),
+			'category'            => 'website-optimiser',
+			'output_schema'       => website_optimiser_abilities_generic_object_schema(),
+			'execute_callback'    => 'website_optimiser_ability_execute_check_llms_txt',
 			'permission_callback' => 'website_optimiser_abilities_can_manage',
 			'meta'                => $readonly_meta,
 		)
