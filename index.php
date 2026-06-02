@@ -27,6 +27,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/connectors.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/abilities.php';
+
 if ( is_admin() ) {
     require_once plugin_dir_path( __FILE__ ) . 'dashboard-widget.php';
 }
@@ -174,8 +177,7 @@ function meta_description_boy_add_meta_box() {
     }
 
     // Check if the Gemini API key is set
-    $api_key = get_option('meta_description_boy_api_key');
-    if (empty($api_key)) {
+    if ( ! website_optimiser_gemini_api_key_configured() ) {
         if ($debug_enabled) {
             error_log('Meta Description Boy: API key not set, meta box not added');
         }
@@ -239,20 +241,20 @@ function meta_description_boy_diagnostic_admin_notice() {
 
     $screen = get_current_screen();
     if ($screen && ($screen->post_type == 'post' || $screen->post_type == 'page') && $screen->base == 'post') {
-        $api_key = get_option('meta_description_boy_api_key');
         $user = wp_get_current_user();
         $allowed_roles = get_option('meta_description_boy_allowed_roles', array('administrator'));
         $selected_post_types = get_option('meta_description_boy_post_types', array('post', 'page'));
 
         echo '<div class="notice notice-info">';
         echo '<h3>Website Optimiser Debug Info:</h3>';
-        echo '<p><strong>API Key Set:</strong> ' . (!empty($api_key) ? 'Yes' : 'No') . '</p>';
+        echo '<p><strong>API Key Set:</strong> ' . ( website_optimiser_gemini_api_key_configured() ? 'Yes' : 'No' ) . '</p>';
+        echo '<p><strong>API Key Source:</strong> ' . esc_html( website_optimiser_get_gemini_api_key_source_label() ) . '</p>';
         echo '<p><strong>User Roles:</strong> ' . implode(', ', $user->roles) . '</p>';
         echo '<p><strong>Allowed Roles:</strong> ' . implode(', ', $allowed_roles) . '</p>';
         echo '<p><strong>Selected Post Types:</strong> ' . implode(', ', $selected_post_types) . '</p>';
         echo '<p><strong>Current Post Type:</strong> ' . $screen->post_type . '</p>';
         echo '<p><strong>Meta Box Should Show:</strong> ' . (
-            !empty($api_key) &&
+            website_optimiser_gemini_api_key_configured() &&
             array_intersect($allowed_roles, $user->roles) &&
             in_array($screen->post_type, $selected_post_types)
             ? 'Yes' : 'No'
@@ -292,10 +294,18 @@ function meta_description_boy_meta_box_callback($post) {
 
 // Meta box callback for attachment alt text generation
 function meta_description_boy_alt_text_meta_box_callback($post) {
-    $api_key = get_option('meta_description_boy_api_key');
-
-    if (empty($api_key)) {
-        echo '<p>Please configure your Google Gemini API key in the plugin settings first.</p>';
+    if ( ! website_optimiser_gemini_api_key_configured() ) {
+        if ( ! website_optimiser_ai_features_enabled() ) {
+            echo '<p>' . esc_html__( 'AI features are disabled on this site.' ) . '</p>';
+        } elseif ( website_optimiser_connectors_api_available() ) {
+            echo '<p>' . sprintf(
+                /* translators: %s: Settings → Connectors admin URL */
+                wp_kses_post( __( 'Configure your Google API key under <a href="%s">Settings → Connectors</a>, or in Website Optimiser settings below.', 'website-optimiser' ) ),
+                esc_url( website_optimiser_get_gemini_credentials_admin_url() )
+            ) . '</p>';
+        } else {
+            echo '<p>' . esc_html__( 'Please configure your Google Gemini API key in the plugin settings first.', 'website-optimiser' ) . '</p>';
+        }
         return;
     }
 
@@ -515,9 +525,42 @@ function meta_description_boy_allowed_roles_field_cb() {
 }
 
 function meta_description_boy_api_key_field_cb() {
-    $api_key = get_option('meta_description_boy_api_key');
-    echo "<input type='password' name='meta_description_boy_api_key' value='" . esc_attr($api_key) . "' style='width: 400px;'>";
-    echo "<p class='description'>Get your API key from <a href='https://aistudio.google.com/app/apikey' target='_blank'>Google AI Studio</a></p>";
+    $legacy_key  = get_option( 'meta_description_boy_api_key', '' );
+    $key_source  = website_optimiser_get_gemini_api_key_source();
+    $configured  = website_optimiser_gemini_api_key_configured();
+
+    if ( website_optimiser_connectors_api_available() ) {
+        $connectors_url = esc_url( website_optimiser_get_gemini_credentials_admin_url() );
+
+        if ( $configured && 'plugin-setting' !== $key_source ) {
+            echo '<p class="description"><strong>' . esc_html__( 'Active key:', 'website-optimiser' ) . '</strong> ';
+            echo esc_html( website_optimiser_get_gemini_api_key_source_label() ) . '</p>';
+            echo '<p class="description">' . sprintf(
+                /* translators: %s: Settings → Connectors URL */
+                wp_kses_post( __( 'Manage the Google API key in <a href="%s">Settings → Connectors</a>. Keys can also be set via the <code>GOOGLE_API_KEY</code> environment variable or PHP constant.', 'website-optimiser' ) ),
+                $connectors_url
+            ) . '</p>';
+        } else {
+            echo '<p class="description">' . sprintf(
+                /* translators: %s: Settings → Connectors URL */
+                wp_kses_post( __( 'On WordPress 7.0+, add your Google API key in <a href="%s">Settings → Connectors</a> (recommended), or enter a fallback key below.', 'website-optimiser' ) ),
+                $connectors_url
+            ) . '</p>';
+        }
+    } else {
+        echo "<p class='description'>" . esc_html__( 'Get your API key from Google AI Studio.', 'website-optimiser' ) . " <a href='https://aistudio.google.com/app/apikey' target='_blank' rel='noopener noreferrer'>Google AI Studio</a></p>";
+    }
+
+    $readonly = ( $configured && 'plugin-setting' !== $key_source );
+    echo "<input type='password' name='meta_description_boy_api_key' value='" . esc_attr( $legacy_key ) . "' style='width: 400px;'";
+    if ( $readonly ) {
+        echo " readonly placeholder='" . esc_attr__( 'Using Connectors API key', 'website-optimiser' ) . "'";
+    }
+    echo '>';
+
+    if ( ! website_optimiser_ai_features_enabled() ) {
+        echo '<p class="description" style="color:#b32d2e;">' . esc_html__( 'AI features are disabled on this site (wp_supports_ai).', 'website-optimiser' ) . '</p>';
+    }
 }
 
 function meta_description_boy_post_types_field_cb() {
@@ -622,113 +665,281 @@ function meta_description_boy_enqueue_admin_scripts($hook) {
 }
 add_action('admin_enqueue_scripts', 'meta_description_boy_enqueue_admin_scripts');
 
-function meta_description_boy_handle_ajax_request() {
-    // Debug logging if enabled
-    $debug_enabled = get_option('meta_description_boy_debug_enabled');
-    if ($debug_enabled) {
-        error_log('Meta Description Boy: AJAX request received. POST data: ' . print_r($_POST, true));
+/**
+ * Generate an SEO meta description for a post using Google Gemini.
+ *
+ * @param int $post_id Post ID.
+ * @return string|WP_Error Generated description or error.
+ */
+function meta_description_boy_generate_meta_description_for_post( $post_id ) {
+    $post_id = intval( $post_id );
+
+    if ( ! $post_id ) {
+        return new WP_Error( 'invalid_post_id', __( 'No post ID provided.' ) );
     }
 
-    // Verify nonce
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'meta_description_boy_nonce')) {
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: Nonce verification failed');
-        }
-        wp_send_json_error(array('message' => 'Invalid nonce'));
-    }
-
-    $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
-
-    if ($debug_enabled) {
-        error_log('Meta Description Boy: Processing request for post ID: ' . $post_id);
-    }
-
-    if (!$post_id) {
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: No post ID provided');
-        }
-        wp_send_json_error(array('message' => 'No post ID provided'));
-    }
-
-    $title = get_the_title($post_id) . ' '; // Equivalent to get_name
+    $title = get_the_title( $post_id ) . ' ';
 
     $wc_content = '';
-    if ('product' === get_post_type($post_id)) {
-        $wc_content = get_post_field('post_excerpt', $post_id);
+    if ( 'product' === get_post_type( $post_id ) ) {
+        $wc_content = get_post_field( 'post_excerpt', $post_id );
     }
 
     $acf_content = '';
-    if (function_exists('get_fields')) {
-        $acf_data = get_fields($post_id);
-        $acf_content_raw = extract_acf_content($acf_data);
-        $acf_content = remove_table_content($acf_content_raw);
+    if ( function_exists( 'get_fields' ) ) {
+        $acf_data          = get_fields( $post_id );
+        $acf_content_raw   = extract_acf_content( $acf_data );
+        $acf_content       = remove_table_content( $acf_content_raw );
     }
 
-    $post_content_raw = get_post_field('post_content', $post_id);
-    $post_content = $title . ' ' . remove_table_content($post_content_raw) . ' ' . esc_html($acf_content) . ' ' . $wc_content;
+    $post_content_raw = get_post_field( 'post_content', $post_id );
+    $post_content     = $title . ' ' . remove_table_content( $post_content_raw ) . ' ' . esc_html( $acf_content ) . ' ' . $wc_content;
 
-    $api_key = get_option('meta_description_boy_api_key');
-    $instruction_text = get_option('meta_description_boy_instruction_text', 'Write a 160 character or less SEO meta description based on the following content.');
-
-    if ($debug_enabled) {
-        error_log('Meta Description Boy: Content extracted - Title: ' . $title);
-        error_log('Meta Description Boy: Content length: ' . strlen($post_content));
-        error_log('Meta Description Boy: API key configured: ' . (!empty($api_key) ? 'Yes' : 'No'));
+    if ( ! website_optimiser_ai_features_enabled() ) {
+        return new WP_Error(
+            'ai_disabled',
+            __( 'AI features are disabled on this site.' )
+        );
     }
 
-    if (empty($api_key)) {
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: API key not configured');
-        }
-        wp_send_json_error(array('message' => 'Google Gemini API key not configured. Please check plugin settings.'));
+    $api_key          = website_optimiser_get_gemini_api_key();
+    $instruction_text = get_option( 'meta_description_boy_instruction_text', 'Write a 160 character or less SEO meta description based on the following content.' );
+
+    if ( empty( $api_key ) ) {
+        $message = website_optimiser_connectors_api_available()
+            ? __( 'Google Gemini API key not configured. Add it under Settings → Connectors or in Website Optimiser settings.' )
+            : __( 'Google Gemini API key not configured. Please check plugin settings.' );
+
+        return new WP_Error( 'api_key_missing', $message );
     }
 
-    // Create the prompt by combining instruction and content
     $full_prompt = $instruction_text . "\n\nContent: " . $post_content;
 
-    // Making an API call to Google Gemini
-    $response = wp_remote_post('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $api_key, array(
-        'headers' => array(
-            'Content-Type' => 'application/json',
-        ),
-        'body' => json_encode(array(
-            'contents' => array(
+    $response = wp_remote_post(
+        website_optimiser_get_gemini_api_url( $api_key ),
+        array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+            ),
+            'body'    => wp_json_encode(
                 array(
-                    'parts' => array(
+                    'contents' => array(
                         array(
-                            'text' => $full_prompt
-                        )
-                    )
+                            'parts' => array(
+                                array(
+                                    'text' => $full_prompt,
+                                ),
+                            ),
+                        ),
+                    ),
                 )
+            ),
+            'timeout' => 30,
+        )
+    );
+
+    if ( is_wp_error( $response ) ) {
+        return new WP_Error(
+            'gemini_request_error',
+            sprintf(
+                /* translators: %s: error message from HTTP client */
+                __( 'Gemini API Request Error: %s' ),
+                $response->get_error_message()
             )
-        )),
-        'timeout' => 30
-    ));
+        );
+    }
 
-    if (is_wp_error($response)) {
-        $error_message = $response->get_error_message();
-        wp_send_json_error(array('message' => 'Gemini API Request Error: ' . $error_message));
-    } else {
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code !== 200) {
-            $body = wp_remote_retrieve_body($response);
-            $error_data = json_decode($body, true);
-            $error_message = isset($error_data['error']['message']) ? $error_data['error']['message'] : 'HTTP ' . $response_code;
-            wp_send_json_error(array('message' => 'Gemini API Response Error: ' . $error_message));
-        } else {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
+    $response_code = wp_remote_retrieve_response_code( $response );
 
-            $description = isset($data['candidates'][0]['content']['parts'][0]['text']) ? trim($data['candidates'][0]['content']['parts'][0]['text']) : '';
+    if ( 200 !== $response_code ) {
+        $body         = wp_remote_retrieve_body( $response );
+        $error_data   = json_decode( $body, true );
+        $error_message = isset( $error_data['error']['message'] ) ? $error_data['error']['message'] : 'HTTP ' . $response_code;
 
-            if ($description) {
-                wp_send_json_success(array('description' => $description));
-            } else {
-                $error_message = isset($data['error']) ? $data['error']['message'] : 'Unexpected error generating description';
-                wp_send_json_error(array('message' => 'Gemini Error: ' . $error_message));
-            }
+        return new WP_Error(
+            'gemini_response_error',
+            sprintf(
+                /* translators: %s: error message from API */
+                __( 'Gemini API Response Error: %s' ),
+                $error_message
+            )
+        );
+    }
+
+    $body        = wp_remote_retrieve_body( $response );
+    $data        = json_decode( $body, true );
+    $description = isset( $data['candidates'][0]['content']['parts'][0]['text'] )
+        ? trim( $data['candidates'][0]['content']['parts'][0]['text'] )
+        : '';
+
+    if ( $description ) {
+        return $description;
+    }
+
+    $error_message = isset( $data['error']['message'] ) ? $data['error']['message'] : __( 'Unexpected error generating description' );
+
+    return new WP_Error( 'gemini_error', sprintf( __( 'Gemini Error: %s' ), $error_message ) );
+}
+
+/**
+ * Generate alt text for a media attachment using Google Gemini Vision.
+ *
+ * @param int  $attachment_id Attachment post ID.
+ * @param bool $save          Whether to save alt text to attachment meta.
+ * @return string|WP_Error Generated alt text or error.
+ */
+function meta_description_boy_generate_alt_text_for_attachment( $attachment_id, $save = false ) {
+    $attachment_id = absint( $attachment_id );
+
+    if ( ! $attachment_id ) {
+        return new WP_Error( 'invalid_attachment_id', __( 'Invalid attachment ID.' ) );
+    }
+
+    $attachment = get_post( $attachment_id );
+    if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
+        return new WP_Error( 'attachment_not_found', __( 'Attachment not found.' ) );
+    }
+
+    if ( ! wp_attachment_is_image( $attachment_id ) ) {
+        return new WP_Error( 'not_an_image', __( 'File is not an image.' ) );
+    }
+
+    if ( ! website_optimiser_ai_features_enabled() ) {
+        return new WP_Error( 'ai_disabled', __( 'AI features are disabled on this site.' ) );
+    }
+
+    $api_key = website_optimiser_get_gemini_api_key();
+    if ( empty( $api_key ) ) {
+        return new WP_Error( 'api_key_missing', __( 'Google Gemini API key not configured.', 'website-optimiser' ) );
+    }
+
+    $image_url = wp_get_attachment_url( $attachment_id );
+    if ( ! $image_url ) {
+        return new WP_Error( 'image_url_missing', __( 'Could not get image URL.' ) );
+    }
+
+    $image_data = wp_remote_get(
+        $image_url,
+        array(
+            'timeout'   => 30,
+            'headers'   => meta_description_boy_get_http_auth_headers(),
+            'sslverify' => false,
+        )
+    );
+
+    if ( is_wp_error( $image_data ) ) {
+        return new WP_Error(
+            'image_fetch_error',
+            sprintf(
+                /* translators: %s: error message */
+                __( 'Could not fetch image data: %s' ),
+                $image_data->get_error_message()
+            )
+        );
+    }
+
+    $prompt = 'Generate a concise, descriptive alt text for this image that would be suitable for web accessibility. Focus on what\'s visible in the image and its key elements. Keep it under 125 characters and don\'t start with \'Image of\' or \'Photo of\'.';
+
+    $response = wp_remote_post(
+        website_optimiser_get_gemini_api_url( $api_key ),
+        array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+            ),
+            'body'    => wp_json_encode(
+                array(
+                    'contents' => array(
+                        array(
+                            'parts' => array(
+                                array(
+                                    'text' => $prompt,
+                                ),
+                                array(
+                                    'inline_data' => array(
+                                        'mime_type' => get_post_mime_type( $attachment_id ),
+                                        'data'      => base64_encode( wp_remote_retrieve_body( $image_data ) ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+            ),
+            'timeout' => 30,
+        )
+    );
+
+    if ( is_wp_error( $response ) ) {
+        return new WP_Error(
+            'gemini_request_error',
+            sprintf( __( 'Gemini API Request Error: %s' ), $response->get_error_message() )
+        );
+    }
+
+    $response_code = wp_remote_retrieve_response_code( $response );
+    if ( 200 !== $response_code ) {
+        $body          = wp_remote_retrieve_body( $response );
+        $error_data    = json_decode( $body, true );
+        $error_message = isset( $error_data['error']['message'] ) ? $error_data['error']['message'] : 'HTTP ' . $response_code;
+
+        return new WP_Error(
+            'gemini_response_error',
+            sprintf( __( 'Gemini API Response Error: %s' ), $error_message )
+        );
+    }
+
+    $body     = wp_remote_retrieve_body( $response );
+    $data     = json_decode( $body, true );
+    $alt_text = isset( $data['candidates'][0]['content']['parts'][0]['text'] )
+        ? trim( $data['candidates'][0]['content']['parts'][0]['text'] )
+        : '';
+
+    $alt_text = trim( $alt_text, "\"'" );
+
+    if ( '' === $alt_text ) {
+        $error_message = isset( $data['error']['message'] ) ? $data['error']['message'] : __( 'Unexpected error generating alt text' );
+
+        return new WP_Error( 'gemini_error', sprintf( __( 'Gemini Error: %s' ), $error_message ) );
+    }
+
+    if ( $save ) {
+        if ( false === update_post_meta( $attachment_id, '_wp_attachment_image_alt', $alt_text ) ) {
+            return new WP_Error( 'save_failed', __( 'Failed to save alt text.' ) );
         }
     }
+
+    return $alt_text;
+}
+
+function meta_description_boy_handle_ajax_request() {
+    $debug_enabled = get_option( 'meta_description_boy_debug_enabled' );
+    if ( $debug_enabled ) {
+        error_log( 'Meta Description Boy: AJAX request received. POST data: ' . print_r( $_POST, true ) );
+    }
+
+    if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'meta_description_boy_nonce' ) ) {
+        if ( $debug_enabled ) {
+            error_log( 'Meta Description Boy: Nonce verification failed' );
+        }
+        wp_send_json_error( array( 'message' => 'Invalid nonce' ) );
+    }
+
+    $post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+
+    if ( $debug_enabled ) {
+        error_log( 'Meta Description Boy: Processing request for post ID: ' . $post_id );
+    }
+
+    $result = meta_description_boy_generate_meta_description_for_post( $post_id );
+
+    if ( is_wp_error( $result ) ) {
+        if ( $debug_enabled ) {
+            error_log( 'Meta Description Boy: ' . $result->get_error_message() );
+        }
+        wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+    }
+
+    wp_send_json_success( array( 'description' => $result ) );
 }
 add_action('wp_ajax_meta_description_boy_generate_description', 'meta_description_boy_handle_ajax_request');
 
@@ -761,88 +972,13 @@ function meta_description_boy_handle_alt_text_ajax_request() {
         wp_send_json_error(array('message' => 'File is not an image'));
     }
 
-    // Get image URL
-    $image_url = wp_get_attachment_url($attachment_id);
-    if (!$image_url) {
-        wp_send_json_error(array('message' => 'Could not get image URL'));
+    $result = meta_description_boy_generate_alt_text_for_attachment( $attachment_id, false );
+
+    if ( is_wp_error( $result ) ) {
+        wp_send_json_error( array( 'message' => $result->get_error_message() ) );
     }
 
-    $api_key = get_option('meta_description_boy_api_key');
-    if (empty($api_key)) {
-        wp_send_json_error(array('message' => 'Google Gemini API key not configured'));
-    }
-
-    // Get image data
-    $image_request_args = array(
-        'timeout' => 30,
-        'headers' => meta_description_boy_get_http_auth_headers(),
-        'sslverify' => false
-    );
-    $image_data = wp_remote_get($image_url, $image_request_args);
-    if (is_wp_error($image_data)) {
-        wp_send_json_error(array('message' => 'Could not fetch image data'));
-    }
-
-    $image_content = wp_remote_retrieve_body($image_data);
-    $image_base64 = base64_encode($image_content);
-
-    // Get mime type
-    $mime_type = get_post_mime_type($attachment_id);
-
-    // Create prompt for alt text generation
-    $prompt = "Generate a concise, descriptive alt text for this image that would be suitable for web accessibility. Focus on what's visible in the image and its key elements. Keep it under 125 characters and don't start with 'Image of' or 'Photo of'.";
-
-    // Making an API call to Google Gemini Vision
-    $response = wp_remote_post('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $api_key, array(
-        'headers' => array(
-            'Content-Type' => 'application/json',
-        ),
-        'body' => json_encode(array(
-            'contents' => array(
-                array(
-                    'parts' => array(
-                        array(
-                            'text' => $prompt
-                        ),
-                        array(
-                            'inline_data' => array(
-                                'mime_type' => $mime_type,
-                                'data' => $image_base64
-                            )
-                        )
-                    )
-                )
-            )
-        )),
-        'timeout' => 30
-    ));
-
-    if (is_wp_error($response)) {
-        $error_message = $response->get_error_message();
-        wp_send_json_error(array('message' => 'Gemini API Request Error: ' . $error_message));
-    } else {
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code !== 200) {
-            $body = wp_remote_retrieve_body($response);
-            $error_data = json_decode($body, true);
-            $error_message = isset($error_data['error']['message']) ? $error_data['error']['message'] : 'HTTP ' . $response_code;
-            wp_send_json_error(array('message' => 'Gemini API Response Error: ' . $error_message));
-        } else {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-
-            $alt_text = isset($data['candidates'][0]['content']['parts'][0]['text']) ? trim($data['candidates'][0]['content']['parts'][0]['text']) : '';
-
-            if ($alt_text) {
-                // Remove quotes if they exist at the beginning and end
-                $alt_text = trim($alt_text, '"\'');
-                wp_send_json_success(array('alt_text' => $alt_text));
-            } else {
-                $error_message = isset($data['error']) ? $data['error']['message'] : 'Unexpected error generating alt text';
-                wp_send_json_error(array('message' => 'Gemini Error: ' . $error_message));
-            }
-        }
-    }
+    wp_send_json_success( array( 'alt_text' => $result ) );
 }
 add_action('wp_ajax_meta_description_boy_generate_alt_text', 'meta_description_boy_handle_alt_text_ajax_request');
 
@@ -963,96 +1099,13 @@ function meta_description_boy_bulk_process_single_image() {
         wp_send_json_error(array('message' => 'File is not an image'));
     }
 
-    $api_key = get_option('meta_description_boy_api_key');
-    if (empty($api_key)) {
-        wp_send_json_error(array('message' => 'Google Gemini API key not configured'));
+    $result = meta_description_boy_generate_alt_text_for_attachment( $attachment_id, true );
+
+    if ( is_wp_error( $result ) ) {
+        wp_send_json_error( array( 'message' => $result->get_error_message() ) );
     }
 
-    // Get image URL
-    $image_url = wp_get_attachment_url($attachment_id);
-    if (!$image_url) {
-        wp_send_json_error(array('message' => 'Could not get image URL'));
-    }
-
-    // Get image data
-    $image_request_args = array(
-        'timeout' => 30,
-        'headers' => meta_description_boy_get_http_auth_headers(),
-        'sslverify' => false
-    );
-    $image_data = wp_remote_get($image_url, $image_request_args);
-    if (is_wp_error($image_data)) {
-        wp_send_json_error(array('message' => 'Could not fetch image data: ' . $image_data->get_error_message()));
-    }
-
-    $image_content = wp_remote_retrieve_body($image_data);
-    $image_base64 = base64_encode($image_content);
-
-    // Get mime type
-    $mime_type = get_post_mime_type($attachment_id);
-
-    // Create prompt for alt text generation
-    $prompt = "Generate a concise, descriptive alt text for this image that would be suitable for web accessibility. Focus on what's visible in the image and its key elements. Keep it under 125 characters and don't start with 'Image of' or 'Photo of'.";
-
-    // Making an API call to Google Gemini Vision
-    $response = wp_remote_post('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $api_key, array(
-        'headers' => array(
-            'Content-Type' => 'application/json',
-        ),
-        'body' => json_encode(array(
-            'contents' => array(
-                array(
-                    'parts' => array(
-                        array(
-                            'text' => $prompt
-                        ),
-                        array(
-                            'inline_data' => array(
-                                'mime_type' => $mime_type,
-                                'data' => $image_base64
-                            )
-                        )
-                    )
-                )
-            )
-        )),
-        'timeout' => 30
-    ));
-
-    if (is_wp_error($response)) {
-        $error_message = $response->get_error_message();
-        wp_send_json_error(array('message' => 'Gemini API Request Error: ' . $error_message));
-    } else {
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code !== 200) {
-            $body = wp_remote_retrieve_body($response);
-            $error_data = json_decode($body, true);
-            $error_message = isset($error_data['error']['message']) ? $error_data['error']['message'] : 'HTTP ' . $response_code;
-            wp_send_json_error(array('message' => 'Gemini API Response Error: ' . $error_message));
-        } else {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-
-            $alt_text = isset($data['candidates'][0]['content']['parts'][0]['text']) ? trim($data['candidates'][0]['content']['parts'][0]['text']) : '';
-
-            if ($alt_text) {
-                // Remove quotes if they exist at the beginning and end
-                $alt_text = trim($alt_text, '"\'');
-
-                // Save the alt text
-                $result = update_post_meta($attachment_id, '_wp_attachment_image_alt', $alt_text);
-
-                if ($result !== false) {
-                    wp_send_json_success(array('alt_text' => $alt_text));
-                } else {
-                    wp_send_json_error(array('message' => 'Failed to save alt text'));
-                }
-            } else {
-                $error_message = isset($data['error']) ? $data['error']['message'] : 'Unexpected error generating alt text';
-                wp_send_json_error(array('message' => 'Gemini Error: ' . $error_message));
-            }
-        }
-    }
+    wp_send_json_success( array( 'alt_text' => $result ) );
 }
 add_action('wp_ajax_meta_description_boy_bulk_process_single_image', 'meta_description_boy_bulk_process_single_image');
 
@@ -1133,142 +1186,46 @@ function meta_description_boy_auto_generate_alt_text($attachment_id) {
     }
 
     // Check if API key is configured
-    $api_key = get_option('meta_description_boy_api_key');
-    if (empty($api_key)) {
+    if ( ! website_optimiser_ai_features_enabled() || ! website_optimiser_gemini_api_key_configured() ) {
         if ($debug_enabled) {
-            error_log('Meta Description Boy: API key not configured');
+            error_log('Meta Description Boy: API key not configured or AI disabled');
         }
         return;
     }
 
-    // Check if it's an image
-    if (!wp_attachment_is_image($attachment_id)) {
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: Attachment ' . $attachment_id . ' is not an image');
+    if ( ! wp_attachment_is_image( $attachment_id ) ) {
+        if ( $debug_enabled ) {
+            error_log( 'Meta Description Boy: Attachment ' . $attachment_id . ' is not an image' );
         }
         return;
     }
 
-    // Check if alt text already exists
-    $existing_alt = get_post_meta($attachment_id, '_wp_attachment_image_alt', true);
-    if (!empty($existing_alt)) {
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: Alt text already exists for attachment ' . $attachment_id . ': ' . $existing_alt);
-        }
-        return; // Don't overwrite existing alt text
-    }
-
-    // Get image URL
-    $image_url = wp_get_attachment_url($attachment_id);
-    if (!$image_url) {
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: Could not get image URL for attachment ' . $attachment_id);
+    $existing_alt = get_post_meta( $attachment_id, '_wp_attachment_image_alt', true );
+    if ( ! empty( $existing_alt ) ) {
+        if ( $debug_enabled ) {
+            error_log( 'Meta Description Boy: Alt text already exists for attachment ' . $attachment_id . ': ' . $existing_alt );
         }
         return;
     }
 
-    if ($debug_enabled) {
-        error_log('Meta Description Boy: Image URL: ' . $image_url);
+    $alt_text = meta_description_boy_generate_alt_text_for_attachment( $attachment_id, true );
+
+    if ( is_wp_error( $alt_text ) ) {
+        if ( $debug_enabled ) {
+            error_log( 'Meta Description Boy: Auto alt text failed for attachment ' . $attachment_id . ': ' . $alt_text->get_error_message() );
+        }
+        return;
     }
 
-    // Get image data
-    $image_request_args = array(
-        'timeout' => 30,
-        'headers' => meta_description_boy_get_http_auth_headers(),
-        'sslverify' => false
+    $auto_generated                      = get_option( 'meta_description_boy_auto_generated_alt_text', array() );
+    $auto_generated[ $attachment_id ]    = array(
+        'alt_text'     => $alt_text,
+        'generated_at' => current_time( 'mysql' ),
     );
-    $image_data = wp_remote_get($image_url, $image_request_args);
-    if (is_wp_error($image_data)) {
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: Error fetching image data: ' . $image_data->get_error_message());
-        }
-        return;
-    }
+    update_option( 'meta_description_boy_auto_generated_alt_text', $auto_generated );
 
-    $image_content = wp_remote_retrieve_body($image_data);
-    $image_base64 = base64_encode($image_content);
-
-    // Get mime type
-    $mime_type = get_post_mime_type($attachment_id);
-
-    // Create prompt for alt text generation
-    $prompt = "Generate a concise, descriptive alt text for this image that would be suitable for web accessibility. Focus on what's visible in the image and its key elements. Keep it under 125 characters and don't start with 'Image of' or 'Photo of'.";
-
-    // Making an API call to Google Gemini Vision
-    $response = wp_remote_post('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $api_key, array(
-        'headers' => array(
-            'Content-Type' => 'application/json',
-        ),
-        'body' => json_encode(array(
-            'contents' => array(
-                array(
-                    'parts' => array(
-                        array(
-                            'text' => $prompt
-                        ),
-                        array(
-                            'inline_data' => array(
-                                'mime_type' => $mime_type,
-                                'data' => $image_base64
-                            )
-                        )
-                    )
-                )
-            )
-        )),
-        'timeout' => 30
-    ));
-
-        // Check if request was successful
-    if (!is_wp_error($response)) {
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: API response code: ' . $response_code);
-        }
-
-        if ($response_code === 200) {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-
-            if ($debug_enabled) {
-                error_log('Meta Description Boy: API response body: ' . $body);
-            }
-
-            $alt_text = isset($data['candidates'][0]['content']['parts'][0]['text']) ? trim($data['candidates'][0]['content']['parts'][0]['text']) : '';
-
-            if ($alt_text) {
-                // Remove quotes if they exist at the beginning and end
-                $alt_text = trim($alt_text, '"\'');
-                // Save the generated alt text
-                update_post_meta($attachment_id, '_wp_attachment_image_alt', $alt_text);
-
-                // Store info about auto-generated alt text for notification
-                $auto_generated = get_option('meta_description_boy_auto_generated_alt_text', array());
-                $auto_generated[$attachment_id] = array(
-                    'alt_text' => $alt_text,
-                    'generated_at' => current_time('mysql')
-                );
-                update_option('meta_description_boy_auto_generated_alt_text', $auto_generated);
-
-                // Log success for debugging if enabled
-                if ($debug_enabled) {
-                    error_log('Meta Description Boy: Auto-generated alt text for attachment ' . $attachment_id . ': ' . $alt_text);
-                }
-            } else {
-                if ($debug_enabled) {
-                    error_log('Meta Description Boy: No alt text generated from API response');
-                }
-            }
-        } else {
-            if ($debug_enabled) {
-                $body = wp_remote_retrieve_body($response);
-                error_log('Meta Description Boy: API error response: ' . $body);
-            }
-        }
-    } else {
-        if ($debug_enabled) {
-            error_log('Meta Description Boy: API request error: ' . $response->get_error_message());
-        }
+    if ( $debug_enabled ) {
+        error_log( 'Meta Description Boy: Auto-generated alt text for attachment ' . $attachment_id . ': ' . $alt_text );
     }
 }
 

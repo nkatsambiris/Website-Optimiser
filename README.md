@@ -4,9 +4,51 @@
 
 A WordPress plugin that connects to Google Gemini AI to generate meta descriptions for your pages.
 
-This plugin streamlines the process of generating SEO-optimized meta descriptions using Google's Gemini 2.0 Flash model.
+This plugin streamlines the process of generating SEO-optimized meta descriptions using Google's Gemini API (default model: `gemini-2.5-flash`).
 
 It is currently compatible with ACF, WooCommerce, and the default Classic Editor.
+
+## WordPress Connectors API (7.0+)
+
+On WordPress 7.0 and later, Google Gemini API keys are read from **Settings → Connectors** (connector ID: `google`). The same priority as core applies:
+
+1. `GOOGLE_API_KEY` environment variable  
+2. `GOOGLE_API_KEY` PHP constant (e.g. in `wp-config.php`)  
+3. Database option `connectors_ai_google_api_key` (saved via Connectors UI)
+
+If no connector key is set, the plugin falls back to the legacy **Google Gemini API Key** field in Website Optimiser settings (WordPress 6.x and earlier).
+
+## WordPress Abilities API
+
+Website Optimiser registers abilities on WordPress 6.9+ (or when the [Abilities API](https://github.com/WordPress/abilities-api) plugin / Composer package is available). These expose optimisation data and AI tools to PHP, REST (`/wp-json/wp-abilities/v1/`), and AI agents.
+
+| Ability | Description |
+| --- | --- |
+| `website-optimiser/get-seo-summary` | Aggregate dashboard optimisation summary |
+| `website-optimiser/get-meta-description-stats` | Meta description coverage |
+| `website-optimiser/get-h1-stats` | H1 heading analysis stats |
+| `website-optimiser/get-alt-text-stats` | Image alt text coverage |
+| `website-optimiser/get-featured-image-stats` | Featured image coverage |
+| `website-optimiser/get-optimisation-checks` | All module checks (robots, sitemap, plugins, WooCommerce, etc.) |
+| `website-optimiser/get-h1-detailed-results` | Per-post H1 analysis breakdown |
+| `website-optimiser/get-images-without-alt-text` | List images missing alt text (`limit` input) |
+| `website-optimiser/detect-seo-plugins` | Active SEO plugins on the site |
+| `website-optimiser/check-robots-txt` | robots.txt availability check |
+| `website-optimiser/check-xml-sitemap` | XML sitemap availability check |
+| `website-optimiser/get-ai-config-status` | AI enabled, key configured, model ID (no secrets) |
+| `website-optimiser/generate-meta-description` | Generate meta description (`post_id`) |
+| `website-optimiser/generate-alt-text` | Generate alt text (`attachment_id`, optional `save`) |
+| `website-optimiser/refresh-h1-analysis` | Re-run and store H1 analysis |
+| `website-optimiser/clear-optimisation-cache` | Clear plugin caches and transients |
+
+Example (PHP):
+
+```php
+$ability = wp_get_ability( 'website-optimiser/get-meta-description-stats' );
+$stats   = $ability->execute();
+```
+
+REST (authenticated): `GET /wp-json/wp-abilities/v1/abilities` and `POST /wp-json/wp-abilities/v1/website-optimiser/generate-meta-description/run` with JSON body `{ "post_id": 123 }`.
 
 ## Setup
 
