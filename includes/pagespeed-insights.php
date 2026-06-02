@@ -7,6 +7,7 @@
 defined( 'ABSPATH' ) || exit;
 
 const WEBSITE_OPTIMISER_PAGESPEED_RESULTS_OPTION = 'website_optimiser_pagespeed_results';
+const WEBSITE_OPTIMISER_PAGESPEED_API_KEY_OPTION = 'website_optimiser_pagespeed_api_key';
 const WEBSITE_OPTIMISER_PAGESPEED_PASSING_SCORE  = 90;
 
 /**
@@ -16,6 +17,24 @@ function website_optimiser_get_pagespeed_results() {
     $results = get_option( WEBSITE_OPTIMISER_PAGESPEED_RESULTS_OPTION, array() );
 
     return is_array( $results ) ? $results : array();
+}
+
+/**
+ * Get the PageSpeed Insights API key, if one is configured.
+ *
+ * @return string
+ */
+function website_optimiser_get_pagespeed_api_key() {
+    if ( defined( 'WEBSITE_OPTIMISER_PAGESPEED_API_KEY' ) && WEBSITE_OPTIMISER_PAGESPEED_API_KEY ) {
+        return (string) WEBSITE_OPTIMISER_PAGESPEED_API_KEY;
+    }
+
+    $env_key = getenv( 'PAGESPEED_INSIGHTS_API_KEY' );
+    if ( ! empty( $env_key ) ) {
+        return (string) $env_key;
+    }
+
+    return (string) get_option( WEBSITE_OPTIMISER_PAGESPEED_API_KEY_OPTION, '' );
 }
 
 /**
@@ -55,6 +74,11 @@ function website_optimiser_run_pagespeed_strategy( $strategy ) {
         $api_url .= '&category=' . rawurlencode( $category );
     }
 
+    $api_key = website_optimiser_get_pagespeed_api_key();
+    if ( '' !== $api_key ) {
+        $api_url .= '&key=' . rawurlencode( $api_key );
+    }
+
     $response = wp_remote_get(
         $api_url,
         array(
@@ -71,11 +95,16 @@ function website_optimiser_run_pagespeed_strategy( $strategy ) {
 
     if ( 200 !== $response_code || ! is_array( $body ) ) {
         $message = isset( $body['error']['message'] ) ? $body['error']['message'] : __( 'PageSpeed Insights returned an unexpected response.', 'website-optimiser' );
+        $code    = (int) $response_code;
+
+        if ( 429 === $code || false !== stripos( $message, 'quota' ) ) {
+            $message = __( 'PageSpeed Insights quota exceeded. Add a PageSpeed API key in Website Optimiser settings, or try again after the quota resets.', 'website-optimiser' );
+        }
 
         return new WP_Error(
             'pagespeed_request_failed',
             $message,
-            array( 'status' => $response_code )
+            array( 'status' => $code )
         );
     }
 
@@ -220,6 +249,7 @@ function website_optimiser_render_pagespeed_score_row( $label, $scores ) {
 function website_optimiser_render_pagespeed_insights_section() {
     $status  = website_optimiser_check_pagespeed_insights_status();
     $results = $status['results'];
+    $api_key = website_optimiser_get_pagespeed_api_key();
     ?>
     <div class="seo-stat-item <?php echo esc_attr( $status['class'] ); ?>">
         <div class="stat-icon">PSI</div>
@@ -233,6 +263,10 @@ function website_optimiser_render_pagespeed_insights_section() {
 
                 <?php if ( ! empty( $results['checked_at'] ) ) : ?>
                     <br><small>Last checked: <?php echo esc_html( date_i18n( 'M j, Y g:i A', (int) $results['checked_at'] ) ); ?></small>
+                <?php endif; ?>
+
+                <?php if ( '' === $api_key ) : ?>
+                    <br><small>Add a PageSpeed API key in <a href="<?php echo esc_url( admin_url( 'admin.php?page=meta-description-boy' ) ); ?>">plugin settings</a> to avoid shared quota limits.</small>
                 <?php endif; ?>
 
                 <?php if ( ! empty( $results['results'] ) && is_array( $results['results'] ) ) : ?>

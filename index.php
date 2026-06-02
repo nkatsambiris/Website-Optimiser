@@ -46,6 +46,7 @@ function meta_description_boy_activate() {
     add_option('meta_description_boy_auto_alt_text', 1); // Enable by default
     add_option('meta_description_boy_enable_caching', 1); // Enable caching by default
     add_option('meta_description_boy_cache_duration', 6); // Default 6 hours
+    add_option('website_optimiser_pagespeed_api_key', '');
     add_option('website_optimiser_local_schema', website_optimiser_get_local_schema_defaults());
     add_option('website_optimiser_security_headers', website_optimiser_get_security_headers_defaults());
 
@@ -109,6 +110,7 @@ function meta_description_boy_uninstall() {
     delete_option('meta_description_boy_auto_generated_alt_text');
     delete_option('meta_description_boy_enable_caching');
     delete_option('meta_description_boy_cache_duration');
+    delete_option('website_optimiser_pagespeed_api_key');
     delete_option('website_optimiser_local_schema');
     delete_option('website_optimiser_security_headers');
     delete_option('website_optimiser_pagespeed_results');
@@ -346,11 +348,13 @@ function meta_description_boy_admin_init() {
     register_setting('meta_description_boy_options', 'meta_description_boy_cache_duration');
     register_setting('meta_description_boy_options', 'meta_description_boy_http_auth_user');
     register_setting('meta_description_boy_options', 'meta_description_boy_http_auth_pass');
+    register_setting('meta_description_boy_options', 'website_optimiser_pagespeed_api_key', 'sanitize_text_field');
 
     // Settings sections & fields
     add_settings_section('meta_description_boy_api_settings', 'API Settings', null, 'meta-description-boy');
 
     add_settings_field('meta_description_boy_api_key_field', 'Google Gemini API Key', 'meta_description_boy_api_key_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
+    add_settings_field('website_optimiser_pagespeed_api_key_field', 'Google PageSpeed API Key', 'website_optimiser_pagespeed_api_key_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
     add_settings_field('meta_description_boy_post_types_field', 'Post Types', 'meta_description_boy_post_types_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
     add_settings_field('meta_description_boy_instruction_text_field', 'Instruction Text', 'meta_description_boy_instruction_text_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
     add_settings_field('meta_description_boy_allowed_roles_field', 'Allowed User Roles', 'meta_description_boy_allowed_roles_field_cb', 'meta-description-boy', 'meta_description_boy_api_settings');
@@ -569,6 +573,27 @@ function meta_description_boy_api_key_field_cb() {
     if ( ! website_optimiser_ai_features_enabled() ) {
         echo '<p class="description" style="color:#b32d2e;">' . esc_html__( 'AI features are disabled on this site (wp_supports_ai).', 'website-optimiser' ) . '</p>';
     }
+}
+
+function website_optimiser_pagespeed_api_key_field_cb() {
+    $option_key = defined( 'WEBSITE_OPTIMISER_PAGESPEED_API_KEY_OPTION' ) ? WEBSITE_OPTIMISER_PAGESPEED_API_KEY_OPTION : 'website_optimiser_pagespeed_api_key';
+    $api_key    = get_option( $option_key, '' );
+
+    if ( defined( 'WEBSITE_OPTIMISER_PAGESPEED_API_KEY' ) && WEBSITE_OPTIMISER_PAGESPEED_API_KEY ) {
+        echo '<input type="password" value="" style="width: 400px;" readonly placeholder="' . esc_attr__( 'Using wp-config.php constant', 'website-optimiser' ) . '">';
+        echo '<p class="description">' . esc_html__( 'PageSpeed Insights is using WEBSITE_OPTIMISER_PAGESPEED_API_KEY from wp-config.php.', 'website-optimiser' ) . '</p>';
+        return;
+    }
+
+    $env_key = getenv( 'PAGESPEED_INSIGHTS_API_KEY' );
+    if ( ! empty( $env_key ) ) {
+        echo '<input type="password" value="" style="width: 400px;" readonly placeholder="' . esc_attr__( 'Using environment variable', 'website-optimiser' ) . '">';
+        echo '<p class="description">' . esc_html__( 'PageSpeed Insights is using the PAGESPEED_INSIGHTS_API_KEY environment variable.', 'website-optimiser' ) . '</p>';
+        return;
+    }
+
+    echo '<input type="password" name="' . esc_attr( $option_key ) . '" value="' . esc_attr( $api_key ) . '" style="width: 400px;">';
+    echo '<p class="description">' . wp_kses_post( __( 'Optional, but recommended to avoid shared quota errors. Create a Google Cloud API key with the PageSpeed Insights API enabled.', 'website-optimiser' ) ) . ' <a href="https://console.cloud.google.com/apis/library/pagespeedonline.googleapis.com" target="_blank" rel="noopener noreferrer">PageSpeed Insights API</a></p>';
 }
 
 function meta_description_boy_post_types_field_cb() {
