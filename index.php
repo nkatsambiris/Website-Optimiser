@@ -29,6 +29,7 @@ defined( 'ABSPATH' ) || exit;
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/connectors.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/local-schema.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/security-headers.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/abilities.php';
 
 if ( is_admin() ) {
@@ -46,6 +47,7 @@ function meta_description_boy_activate() {
     add_option('meta_description_boy_enable_caching', 1); // Enable caching by default
     add_option('meta_description_boy_cache_duration', 6); // Default 6 hours
     add_option('website_optimiser_local_schema', website_optimiser_get_local_schema_defaults());
+    add_option('website_optimiser_security_headers', website_optimiser_get_security_headers_defaults());
 
     // Clear update caches to ensure updater works properly
     meta_description_boy_clear_update_cache();
@@ -108,6 +110,7 @@ function meta_description_boy_uninstall() {
     delete_option('meta_description_boy_enable_caching');
     delete_option('meta_description_boy_cache_duration');
     delete_option('website_optimiser_local_schema');
+    delete_option('website_optimiser_security_headers');
     // Clean up ManageWP options
     delete_option('meta_description_boy_no_managewp_approved');
     delete_option('meta_description_boy_no_managewp_approved_by');

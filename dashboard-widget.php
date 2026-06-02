@@ -50,6 +50,7 @@ function meta_description_boy_load_section_includes() {
     require_once $dir . 'wp-debug.php';
     require_once $dir . 'caching-plugins.php';
     require_once $dir . 'local-schema.php';
+    require_once $dir . 'security-headers.php';
     require_once $dir . 'dynamic-copyright-year.php';
     require_once $dir . 'woocommerce.php';
     require_once $dir . 'woocommerce-google-analytics.php';
@@ -215,6 +216,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_wp_debug_section();
         meta_description_boy_render_caching_plugins_section();
         website_optimiser_render_local_schema_section();
+        website_optimiser_render_security_headers_section();
         website_optimiser_render_dynamic_copyright_section();
         meta_description_boy_render_media_videos_section();
         meta_description_boy_render_hover_animations_section();
@@ -365,6 +367,9 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('website_optimiser_check_local_schema_status')) {
         $statuses[] = website_optimiser_check_local_schema_status();
+    }
+    if (function_exists('website_optimiser_check_security_headers_status')) {
+        $statuses[] = website_optimiser_check_security_headers_status();
     }
     if (function_exists('website_optimiser_check_dynamic_copyright_status')) {
         $statuses[] = website_optimiser_check_dynamic_copyright_status();

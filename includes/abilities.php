@@ -86,6 +86,7 @@ function website_optimiser_abilities_load_full_dependencies() {
 		'wp-debug.php',
 		'caching-plugins.php',
 		'local-schema.php',
+		'security-headers.php',
 		'dynamic-copyright-year.php',
 		'woocommerce.php',
 		'woocommerce-google-analytics.php',
