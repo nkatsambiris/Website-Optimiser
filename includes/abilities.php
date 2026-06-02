@@ -85,6 +85,7 @@ function website_optimiser_abilities_load_full_dependencies() {
 		'favicon.php',
 		'wp-debug.php',
 		'caching-plugins.php',
+		'pagespeed-insights.php',
 		'local-schema.php',
 		'security-headers.php',
 		'dynamic-copyright-year.php',
@@ -571,6 +572,9 @@ function website_optimiser_ability_execute_clear_optimisation_cache() {
 	}
 	if ( function_exists( 'meta_description_boy_clear_llms_cache' ) ) {
 		meta_description_boy_clear_llms_cache();
+	}
+	if ( function_exists( 'website_optimiser_clear_pagespeed_results' ) ) {
+		website_optimiser_clear_pagespeed_results();
 	}
 
 	delete_transient( 'meta_description_boy_meta_description_stats' );

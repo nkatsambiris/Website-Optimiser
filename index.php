@@ -111,6 +111,7 @@ function meta_description_boy_uninstall() {
     delete_option('meta_description_boy_cache_duration');
     delete_option('website_optimiser_local_schema');
     delete_option('website_optimiser_security_headers');
+    delete_option('website_optimiser_pagespeed_results');
     // Clean up ManageWP options
     delete_option('meta_description_boy_no_managewp_approved');
     delete_option('meta_description_boy_no_managewp_approved_by');
