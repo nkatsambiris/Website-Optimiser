@@ -58,6 +58,14 @@ REST (authenticated): `GET /wp-json/wp-abilities/v1/abilities` and `POST /wp-jso
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 3.0.0 Changes
+- NEW: Update for WordPress 7.0 with option to use connectors and abilities
+- NEW: Local schema support
+- NEW: Module for llms.txt check
+- NEW: Add security headers module
+- NEW: Add Cloudways Cron Optimizer
+- NEW: PageSpeed Insights check
+
 ## Version 2.0.4 Changes
 - FIX: Resolve issue with search and replace not saving status
 

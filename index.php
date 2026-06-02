@@ -2,12 +2,12 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 2.0.4
+* Version: 3.0.0
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
 * License: GPL v3
-* Tested up to: 6.9.4
+* Tested up to: 7.0
 * Requires at least: 6.2
 * Requires PHP: 7.4
 *
