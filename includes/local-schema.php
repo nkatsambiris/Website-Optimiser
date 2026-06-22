@@ -715,15 +715,27 @@ add_action( 'wp_head', 'website_optimiser_output_local_schema', 20 );
  * @return array
  */
 function website_optimiser_check_local_schema_status() {
-	$options = website_optimiser_get_local_schema_options();
+	$options  = website_optimiser_get_local_schema_options();
+	$resolved = get_option( 'website_optimiser_local_schema_resolved', false );
 
-	if ( empty( $options['enabled'] ) ) {
+	if ( empty( $options['enabled'] ) && ! $resolved ) {
 		return array(
 			'enabled' => false,
 			'ready'   => false,
 			'status'  => __( 'Not Enabled', 'website-optimiser' ),
 			'message' => __( 'Configure and enable LocalBusiness schema for this website.', 'website-optimiser' ),
 			'class'   => 'status-warning',
+		);
+	}
+
+	if ( $resolved ) {
+		return array(
+			'enabled'     => ! empty( $options['enabled'] ),
+			'ready'       => website_optimiser_local_schema_is_ready( $options ),
+			'schema_type' => $options['schema_type'] ?? '',
+			'status'      => __( 'Manually Resolved', 'website-optimiser' ),
+			'message'     => __( 'Local Schema has been manually marked as resolved.', 'website-optimiser' ),
+			'class'       => 'status-good',
 		);
 	}
 
@@ -748,21 +760,61 @@ function website_optimiser_check_local_schema_status() {
 }
 
 /**
+ * Handle AJAX request to manually resolve Local Schema.
+ */
+function website_optimiser_approve_local_schema() {
+	if ( ! check_ajax_referer( 'meta_description_boy_nonce', 'nonce', false ) || ! current_user_can( 'manage_options' ) ) {
+		wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Unauthorized' ) ) );
+	}
+
+	$approved_by = sanitize_text_field( $_POST['approved_by'] ?? '' );
+	if ( empty( $approved_by ) ) {
+		wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Name is required' ) ) );
+	}
+
+	update_option( 'website_optimiser_local_schema_resolved', true );
+	update_option( 'website_optimiser_local_schema_resolved_by', $approved_by );
+	update_option( 'website_optimiser_local_schema_resolved_date', current_time( 'mysql' ) );
+
+	wp_die( wp_json_encode( array( 'success' => true, 'message' => 'Local Schema marked as resolved' ) ) );
+}
+add_action( 'wp_ajax_website_optimiser_approve_local_schema', 'website_optimiser_approve_local_schema' );
+
+/**
+ * Handle AJAX request to reset Local Schema manual resolution.
+ */
+function website_optimiser_reset_local_schema_approval() {
+	if ( ! check_ajax_referer( 'meta_description_boy_nonce', 'nonce', false ) || ! current_user_can( 'manage_options' ) ) {
+		wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Unauthorized' ) ) );
+	}
+
+	delete_option( 'website_optimiser_local_schema_resolved' );
+	delete_option( 'website_optimiser_local_schema_resolved_by' );
+	delete_option( 'website_optimiser_local_schema_resolved_date' );
+
+	wp_die( wp_json_encode( array( 'success' => true, 'message' => 'Local Schema resolution reset' ) ) );
+}
+add_action( 'wp_ajax_website_optimiser_reset_local_schema_approval', 'website_optimiser_reset_local_schema_approval' );
+
+/**
  * Render LocalBusiness schema dashboard card.
  */
 function website_optimiser_render_local_schema_section() {
 	$status       = website_optimiser_check_local_schema_status();
 	$settings_url = admin_url( 'admin.php?page=website-optimiser-local-schema' );
+	$ls_resolved      = get_option( 'website_optimiser_local_schema_resolved', false );
+	$ls_resolved_by   = get_option( 'website_optimiser_local_schema_resolved_by', '' );
+	$ls_resolved_date = get_option( 'website_optimiser_local_schema_resolved_date', '' );
 	?>
-	<div class="seo-stat-item <?php echo esc_attr( $status['class'] ); ?>">
+	<div class="seo-stat-item <?php echo esc_attr( $ls_resolved ? 'status-good' : $status['class'] ); ?>">
 		<div class="stat-icon">LD</div>
 		<div class="stat-content">
 			<h4><?php esc_html_e( 'Local Schema', 'website-optimiser' ); ?></h4>
-			<div class="stat-status <?php echo esc_attr( $status['class'] ); ?>">
-				<?php echo esc_html( $status['status'] ); ?>
+			<div class="stat-status <?php echo esc_attr( $ls_resolved ? 'status-good' : $status['class'] ); ?>">
+				<?php echo esc_html( $ls_resolved ? 'Manually Resolved' : $status['status'] ); ?>
 			</div>
 			<div class="stat-label">
-				<?php echo esc_html( $status['message'] ); ?>
+				<?php echo esc_html( $ls_resolved ? 'Local Schema has been manually marked as resolved.' : $status['message'] ); ?>
 				<?php if ( ! empty( $status['schema_type'] ) ) : ?>
 					<br><small><strong><?php esc_html_e( 'Type:', 'website-optimiser' ); ?></strong> <?php echo esc_html( $status['schema_type'] ); ?></small>
 				<?php endif; ?>
@@ -772,8 +824,90 @@ function website_optimiser_render_local_schema_section() {
 					<?php esc_html_e( 'Configure Schema', 'website-optimiser' ); ?>
 				</a>
 			</div>
+			<div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
+				<?php if ( $ls_resolved ) : ?>
+					<div style="background: #edfaef; padding: 10px; border-radius: 4px; border-left: 4px solid #46b450;">
+						<strong>✓ Manually Marked as Resolved</strong><br>
+						<small><strong>Resolved by:</strong> <?php echo esc_html( $ls_resolved_by ); ?></small><br>
+						<small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $ls_resolved_date ) ) ); ?></small>
+					</div>
+					<button type="button" class="button button-small" style="margin-top: 8px;" onclick="resetLocalSchemaApproval()">
+						Reset Resolution
+					</button>
+				<?php else : ?>
+					<div style="background: #f9f9f9; padding: 10px; border-radius: 4px; border-left: 4px solid #0073aa;">
+						<label style="display: block; margin-bottom: 8px; font-weight: 600;">
+							Manually mark Local Schema as resolved?
+						</label>
+						<div style="margin-bottom: 12px; font-size: 13px; color: #666;">
+							Use this if you have reviewed the local schema configuration and are satisfied with the current setup, or schema is managed elsewhere.
+						</div>
+						<label style="display: block; margin-bottom: 8px;">
+							<input type="checkbox" id="local-schema-resolve-checkbox" style="margin-right: 5px;">
+							Confirm that Local Schema has been reviewed and any issues addressed
+						</label>
+						<input type="text" id="local-schema-resolved-by-name" placeholder="Your name" style="width: 100%; margin-bottom: 8px;" disabled>
+						<button type="button" class="button button-small" onclick="approveLocalSchema()" disabled id="local-schema-resolve-btn">
+							Mark as Resolved
+						</button>
+					</div>
+				<?php endif; ?>
+			</div>
 		</div>
 	</div>
+
+	<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		var lsCheckbox = document.getElementById('local-schema-resolve-checkbox');
+		var lsName = document.getElementById('local-schema-resolved-by-name');
+		var lsBtn = document.getElementById('local-schema-resolve-btn');
+		if (lsCheckbox && lsName && lsBtn) {
+			lsCheckbox.addEventListener('change', function() {
+				if (this.checked) {
+					lsName.disabled = false;
+					lsName.focus();
+					lsName.addEventListener('input', function() {
+						lsBtn.disabled = this.value.trim() === '';
+					});
+				} else {
+					lsName.disabled = true;
+					lsName.value = '';
+					lsBtn.disabled = true;
+				}
+			});
+		}
+	});
+
+	function approveLocalSchema() {
+		var checkbox = document.getElementById('local-schema-resolve-checkbox');
+		var nameField = document.getElementById('local-schema-resolved-by-name');
+		if (!checkbox || !checkbox.checked) { alert('Please check the confirmation checkbox first.'); return; }
+		var approvedBy = nameField.value.trim();
+		if (!approvedBy) { alert('Please enter your name.'); nameField.focus(); return; }
+		if (!confirm('Are you sure you want to mark Local Schema as resolved? This confirmation will be tracked.')) return;
+		jQuery.post(ajaxurl, {
+			action: 'website_optimiser_approve_local_schema',
+			approved_by: approvedBy,
+			nonce: '<?php echo wp_create_nonce('meta_description_boy_nonce'); ?>'
+		}, function(response) {
+			var result = JSON.parse(response);
+			if (result.success) { alert('Local Schema marked as resolved.'); location.reload(); }
+			else { alert('Error: ' + result.message); }
+		}).fail(function() { alert('Error processing request. Please try again.'); });
+	}
+
+	function resetLocalSchemaApproval() {
+		if (!confirm('Are you sure you want to reset the Local Schema resolution? This will remove the current confirmation.')) return;
+		jQuery.post(ajaxurl, {
+			action: 'website_optimiser_reset_local_schema_approval',
+			nonce: '<?php echo wp_create_nonce('meta_description_boy_nonce'); ?>'
+		}, function(response) {
+			var result = JSON.parse(response);
+			if (result.success) { alert('Local Schema resolution reset.'); location.reload(); }
+			else { alert('Error: ' + result.message); }
+		}).fail(function() { alert('Error processing request. Please try again.'); });
+	}
+	</script>
 	<?php
 }
 

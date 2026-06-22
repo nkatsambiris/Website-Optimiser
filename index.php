@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Website Optimiser
 * Description: A plugin that optimises your website for SEO and performance.
-* Version: 3.0.0
+* Version: 3.0.1
 * Plugin URI:  https://www.katsambiris.com
 * Author: Nicholas Katsambiris
 * Update URI: website-optimiser
@@ -837,6 +837,10 @@ function meta_description_boy_generate_alt_text_for_attachment( $attachment_id, 
         return new WP_Error( 'not_an_image', __( 'File is not an image.' ) );
     }
 
+    if ( 'image/svg+xml' === get_post_mime_type( $attachment_id ) ) {
+        return new WP_Error( 'svg_not_supported', __( 'SVG images are not supported for alt text generation.' ) );
+    }
+
     if ( ! website_optimiser_ai_features_enabled() ) {
         return new WP_Error( 'ai_disabled', __( 'AI features are disabled on this site.' ) );
     }
@@ -1087,6 +1091,10 @@ function meta_description_boy_get_images_without_alt_text() {
     $image_data = array();
 
     foreach ($images as $image) {
+        if ( 'image/svg+xml' === get_post_mime_type( $image->ID ) ) {
+            continue;
+        }
+
         $thumbnail = wp_get_attachment_image_src($image->ID, 'thumbnail');
         $image_data[] = array(
             'id' => $image->ID,
@@ -1238,6 +1246,13 @@ function meta_description_boy_auto_generate_alt_text($attachment_id) {
     if ( ! wp_attachment_is_image( $attachment_id ) ) {
         if ( $debug_enabled ) {
             error_log( 'Meta Description Boy: Attachment ' . $attachment_id . ' is not an image' );
+        }
+        return;
+    }
+
+    if ( 'image/svg+xml' === get_post_mime_type( $attachment_id ) ) {
+        if ( $debug_enabled ) {
+            error_log( 'Meta Description Boy: Skipping SVG attachment ' . $attachment_id );
         }
         return;
     }

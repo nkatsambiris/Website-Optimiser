@@ -185,9 +185,10 @@ function website_optimiser_run_pagespeed_insights() {
  * Check PageSpeed status from the saved result.
  */
 function website_optimiser_check_pagespeed_insights_status() {
-    $results = website_optimiser_get_pagespeed_results();
+    $results  = website_optimiser_get_pagespeed_results();
+    $resolved = get_option( 'website_optimiser_pagespeed_resolved', false );
 
-    if ( empty( $results ) ) {
+    if ( empty( $results ) && ! $resolved ) {
         return array(
             'class'   => 'status-warning',
             'status'  => 'Not Run',
@@ -196,11 +197,12 @@ function website_optimiser_check_pagespeed_insights_status() {
         );
     }
 
-    if ( ! empty( $results['passed'] ) ) {
+    if ( ! empty( $results['passed'] ) || $resolved ) {
+        $status_text = ! empty( $results['passed'] ) ? 'Passed' : 'Manually Resolved';
         return array(
             'class'   => 'status-good',
-            'status'  => 'Passed',
-            'message' => 'All PageSpeed scores are 90% or higher.',
+            'status'  => $status_text,
+            'message' => ! empty( $results['passed'] ) ? 'All PageSpeed scores are 90% or higher.' : 'PageSpeed Insights has been manually marked as resolved.',
             'results' => $results,
         );
     }
@@ -289,6 +291,40 @@ function website_optimiser_render_pagespeed_insights_section() {
                 </a>
                 <div id="website-optimiser-pagespeed-status" style="display: none; margin-top: 8px;"></div>
             </div>
+            <?php
+            $psi_resolved    = get_option( 'website_optimiser_pagespeed_resolved', false );
+            $psi_resolved_by = get_option( 'website_optimiser_pagespeed_resolved_by', '' );
+            $psi_resolved_date = get_option( 'website_optimiser_pagespeed_resolved_date', '' );
+            ?>
+            <div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
+                <?php if ( $psi_resolved ) : ?>
+                    <div style="background: #edfaef; padding: 10px; border-radius: 4px; border-left: 4px solid #46b450;">
+                        <strong>✓ Manually Marked as Resolved</strong><br>
+                        <small><strong>Resolved by:</strong> <?php echo esc_html( $psi_resolved_by ); ?></small><br>
+                        <small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $psi_resolved_date ) ) ); ?></small>
+                    </div>
+                    <button type="button" class="button button-small" style="margin-top: 8px;" onclick="resetPagespeedApproval()">
+                        Reset Resolution
+                    </button>
+                <?php else : ?>
+                    <div style="background: #f9f9f9; padding: 10px; border-radius: 4px; border-left: 4px solid #0073aa;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+                            Manually mark PageSpeed Insights as resolved?
+                        </label>
+                        <div style="margin-bottom: 12px; font-size: 13px; color: #666;">
+                            Use this if you have reviewed the PageSpeed scores and are satisfied with the current results, or have addressed the issues externally.
+                        </div>
+                        <label style="display: block; margin-bottom: 8px;">
+                            <input type="checkbox" id="pagespeed-resolve-checkbox" style="margin-right: 5px;">
+                            Confirm that PageSpeed Insights has been reviewed and any issues addressed
+                        </label>
+                        <input type="text" id="pagespeed-resolved-by-name" placeholder="Your name" style="width: 100%; margin-bottom: 8px;" disabled>
+                        <button type="button" class="button button-small" onclick="approvePagespeed()" disabled id="pagespeed-resolve-btn">
+                            Mark as Resolved
+                        </button>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
@@ -319,7 +355,56 @@ function website_optimiser_render_pagespeed_insights_section() {
                 $button.prop('disabled', false).text('Run PageSpeed Test');
             });
         });
+
+        var psiCheckbox = document.getElementById('pagespeed-resolve-checkbox');
+        var psiName = document.getElementById('pagespeed-resolved-by-name');
+        var psiBtn = document.getElementById('pagespeed-resolve-btn');
+        if (psiCheckbox && psiName && psiBtn) {
+            psiCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    psiName.disabled = false;
+                    psiName.focus();
+                    psiName.addEventListener('input', function() {
+                        psiBtn.disabled = this.value.trim() === '';
+                    });
+                } else {
+                    psiName.disabled = true;
+                    psiName.value = '';
+                    psiBtn.disabled = true;
+                }
+            });
+        }
     });
+
+    function approvePagespeed() {
+        var checkbox = document.getElementById('pagespeed-resolve-checkbox');
+        var nameField = document.getElementById('pagespeed-resolved-by-name');
+        if (!checkbox || !checkbox.checked) { alert('Please check the confirmation checkbox first.'); return; }
+        var approvedBy = nameField.value.trim();
+        if (!approvedBy) { alert('Please enter your name.'); nameField.focus(); return; }
+        if (!confirm('Are you sure you want to mark PageSpeed Insights as resolved? This confirmation will be tracked.')) return;
+        jQuery.post(ajaxurl, {
+            action: 'website_optimiser_approve_pagespeed',
+            approved_by: approvedBy,
+            nonce: '<?php echo wp_create_nonce('meta_description_boy_nonce'); ?>'
+        }, function(response) {
+            var result = JSON.parse(response);
+            if (result.success) { alert('PageSpeed Insights marked as resolved.'); location.reload(); }
+            else { alert('Error: ' + result.message); }
+        }).fail(function() { alert('Error processing request. Please try again.'); });
+    }
+
+    function resetPagespeedApproval() {
+        if (!confirm('Are you sure you want to reset the PageSpeed Insights resolution? This will remove the current confirmation.')) return;
+        jQuery.post(ajaxurl, {
+            action: 'website_optimiser_reset_pagespeed_approval',
+            nonce: '<?php echo wp_create_nonce('meta_description_boy_nonce'); ?>'
+        }, function(response) {
+            var result = JSON.parse(response);
+            if (result.success) { alert('PageSpeed Insights resolution reset.'); location.reload(); }
+            else { alert('Error: ' + result.message); }
+        }).fail(function() { alert('Error processing request. Please try again.'); });
+    }
     </script>
     <?php
 }
@@ -346,6 +431,43 @@ function website_optimiser_handle_run_pagespeed() {
     );
 }
 add_action( 'wp_ajax_website_optimiser_run_pagespeed', 'website_optimiser_handle_run_pagespeed' );
+
+/**
+ * Handle AJAX request to manually resolve PageSpeed Insights.
+ */
+function website_optimiser_approve_pagespeed() {
+    if ( ! check_ajax_referer( 'meta_description_boy_nonce', 'nonce', false ) || ! current_user_can( 'manage_options' ) ) {
+        wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Unauthorized' ) ) );
+    }
+
+    $approved_by = sanitize_text_field( $_POST['approved_by'] ?? '' );
+    if ( empty( $approved_by ) ) {
+        wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Name is required' ) ) );
+    }
+
+    update_option( 'website_optimiser_pagespeed_resolved', true );
+    update_option( 'website_optimiser_pagespeed_resolved_by', $approved_by );
+    update_option( 'website_optimiser_pagespeed_resolved_date', current_time( 'mysql' ) );
+
+    wp_die( wp_json_encode( array( 'success' => true, 'message' => 'PageSpeed Insights marked as resolved' ) ) );
+}
+add_action( 'wp_ajax_website_optimiser_approve_pagespeed', 'website_optimiser_approve_pagespeed' );
+
+/**
+ * Handle AJAX request to reset PageSpeed Insights manual resolution.
+ */
+function website_optimiser_reset_pagespeed_approval() {
+    if ( ! check_ajax_referer( 'meta_description_boy_nonce', 'nonce', false ) || ! current_user_can( 'manage_options' ) ) {
+        wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Unauthorized' ) ) );
+    }
+
+    delete_option( 'website_optimiser_pagespeed_resolved' );
+    delete_option( 'website_optimiser_pagespeed_resolved_by' );
+    delete_option( 'website_optimiser_pagespeed_resolved_date' );
+
+    wp_die( wp_json_encode( array( 'success' => true, 'message' => 'PageSpeed Insights resolution reset' ) ) );
+}
+add_action( 'wp_ajax_website_optimiser_reset_pagespeed_approval', 'website_optimiser_reset_pagespeed_approval' );
 
 /**
  * Clear saved PageSpeed results.

@@ -175,14 +175,25 @@ add_action( 'send_headers', 'website_optimiser_send_security_headers' );
  * @return array
  */
 function website_optimiser_check_security_headers_status() {
-	$options = website_optimiser_get_security_headers_options();
+	$options  = website_optimiser_get_security_headers_options();
+	$resolved = get_option( 'website_optimiser_security_headers_resolved', false );
 
-	if ( empty( $options['enabled'] ) ) {
+	if ( empty( $options['enabled'] ) && ! $resolved ) {
 		return array(
 			'class'       => 'status-warning',
 			'text'        => __( 'Security headers disabled', 'website-optimiser' ),
 			'description' => __( 'Enable the module to send recommended browser security headers.', 'website-optimiser' ),
 			'enabled'     => false,
+			'active'      => array(),
+		);
+	}
+
+	if ( $resolved ) {
+		return array(
+			'class'       => 'status-good',
+			'text'        => __( 'Manually Resolved', 'website-optimiser' ),
+			'description' => __( 'Security Headers have been manually marked as resolved.', 'website-optimiser' ),
+			'enabled'     => ! empty( $options['enabled'] ),
 			'active'      => array(),
 		);
 	}
@@ -426,20 +437,60 @@ function website_optimiser_security_headers_fields_cb() {
 }
 
 /**
+ * Handle AJAX request to manually resolve Security Headers.
+ */
+function website_optimiser_approve_security_headers() {
+	if ( ! check_ajax_referer( 'meta_description_boy_nonce', 'nonce', false ) || ! current_user_can( 'manage_options' ) ) {
+		wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Unauthorized' ) ) );
+	}
+
+	$approved_by = sanitize_text_field( $_POST['approved_by'] ?? '' );
+	if ( empty( $approved_by ) ) {
+		wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Name is required' ) ) );
+	}
+
+	update_option( 'website_optimiser_security_headers_resolved', true );
+	update_option( 'website_optimiser_security_headers_resolved_by', $approved_by );
+	update_option( 'website_optimiser_security_headers_resolved_date', current_time( 'mysql' ) );
+
+	wp_die( wp_json_encode( array( 'success' => true, 'message' => 'Security Headers marked as resolved' ) ) );
+}
+add_action( 'wp_ajax_website_optimiser_approve_security_headers', 'website_optimiser_approve_security_headers' );
+
+/**
+ * Handle AJAX request to reset Security Headers manual resolution.
+ */
+function website_optimiser_reset_security_headers_approval() {
+	if ( ! check_ajax_referer( 'meta_description_boy_nonce', 'nonce', false ) || ! current_user_can( 'manage_options' ) ) {
+		wp_die( wp_json_encode( array( 'success' => false, 'message' => 'Unauthorized' ) ) );
+	}
+
+	delete_option( 'website_optimiser_security_headers_resolved' );
+	delete_option( 'website_optimiser_security_headers_resolved_by' );
+	delete_option( 'website_optimiser_security_headers_resolved_date' );
+
+	wp_die( wp_json_encode( array( 'success' => true, 'message' => 'Security Headers resolution reset' ) ) );
+}
+add_action( 'wp_ajax_website_optimiser_reset_security_headers_approval', 'website_optimiser_reset_security_headers_approval' );
+
+/**
  * Render Security Headers dashboard section.
  */
 function website_optimiser_render_security_headers_section() {
 	$status = website_optimiser_check_security_headers_status();
+	$sh_resolved      = get_option( 'website_optimiser_security_headers_resolved', false );
+	$sh_resolved_by   = get_option( 'website_optimiser_security_headers_resolved_by', '' );
+	$sh_resolved_date = get_option( 'website_optimiser_security_headers_resolved_date', '' );
 	?>
-	<div class="seo-stat-item <?php echo esc_attr( $status['class'] ); ?>">
+	<div class="seo-stat-item <?php echo esc_attr( $sh_resolved ? 'status-good' : $status['class'] ); ?>">
 		<div class="stat-icon">SH</div>
 		<div class="stat-content">
 			<h4><?php esc_html_e( 'Security Headers', 'website-optimiser' ); ?></h4>
-			<div class="stat-status <?php echo esc_attr( $status['class'] ); ?>">
-				<?php echo esc_html( $status['text'] ); ?>
+			<div class="stat-status <?php echo esc_attr( $sh_resolved ? 'status-good' : $status['class'] ); ?>">
+				<?php echo esc_html( $sh_resolved ? 'Manually Resolved' : $status['text'] ); ?>
 			</div>
 			<div class="stat-label">
-				<?php echo esc_html( $status['description'] ); ?>
+				<?php echo esc_html( $sh_resolved ? 'Security Headers have been manually marked as resolved.' : $status['description'] ); ?>
 				<?php if ( ! is_ssl() && ! empty( $status['enabled'] ) ) : ?>
 					<br><br><small><em><?php esc_html_e( 'HSTS is only sent over HTTPS.', 'website-optimiser' ); ?></em></small>
 				<?php endif; ?>
@@ -449,7 +500,89 @@ function website_optimiser_render_security_headers_section() {
 					<?php esc_html_e( 'Configure Headers', 'website-optimiser' ); ?>
 				</a>
 			</div>
+			<div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
+				<?php if ( $sh_resolved ) : ?>
+					<div style="background: #edfaef; padding: 10px; border-radius: 4px; border-left: 4px solid #46b450;">
+						<strong>✓ Manually Marked as Resolved</strong><br>
+						<small><strong>Resolved by:</strong> <?php echo esc_html( $sh_resolved_by ); ?></small><br>
+						<small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $sh_resolved_date ) ) ); ?></small>
+					</div>
+					<button type="button" class="button button-small" style="margin-top: 8px;" onclick="resetSecurityHeadersApproval()">
+						Reset Resolution
+					</button>
+				<?php else : ?>
+					<div style="background: #f9f9f9; padding: 10px; border-radius: 4px; border-left: 4px solid #0073aa;">
+						<label style="display: block; margin-bottom: 8px; font-weight: 600;">
+							Manually mark Security Headers as resolved?
+						</label>
+						<div style="margin-bottom: 12px; font-size: 13px; color: #666;">
+							Use this if you have reviewed the security headers configuration and are satisfied with the current setup, or headers are managed at the server/hosting level.
+						</div>
+						<label style="display: block; margin-bottom: 8px;">
+							<input type="checkbox" id="security-headers-resolve-checkbox" style="margin-right: 5px;">
+							Confirm that Security Headers have been reviewed and any issues addressed
+						</label>
+						<input type="text" id="security-headers-resolved-by-name" placeholder="Your name" style="width: 100%; margin-bottom: 8px;" disabled>
+						<button type="button" class="button button-small" onclick="approveSecurityHeaders()" disabled id="security-headers-resolve-btn">
+							Mark as Resolved
+						</button>
+					</div>
+				<?php endif; ?>
+			</div>
 		</div>
 	</div>
+
+	<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		var shCheckbox = document.getElementById('security-headers-resolve-checkbox');
+		var shName = document.getElementById('security-headers-resolved-by-name');
+		var shBtn = document.getElementById('security-headers-resolve-btn');
+		if (shCheckbox && shName && shBtn) {
+			shCheckbox.addEventListener('change', function() {
+				if (this.checked) {
+					shName.disabled = false;
+					shName.focus();
+					shName.addEventListener('input', function() {
+						shBtn.disabled = this.value.trim() === '';
+					});
+				} else {
+					shName.disabled = true;
+					shName.value = '';
+					shBtn.disabled = true;
+				}
+			});
+		}
+	});
+
+	function approveSecurityHeaders() {
+		var checkbox = document.getElementById('security-headers-resolve-checkbox');
+		var nameField = document.getElementById('security-headers-resolved-by-name');
+		if (!checkbox || !checkbox.checked) { alert('Please check the confirmation checkbox first.'); return; }
+		var approvedBy = nameField.value.trim();
+		if (!approvedBy) { alert('Please enter your name.'); nameField.focus(); return; }
+		if (!confirm('Are you sure you want to mark Security Headers as resolved? This confirmation will be tracked.')) return;
+		jQuery.post(ajaxurl, {
+			action: 'website_optimiser_approve_security_headers',
+			approved_by: approvedBy,
+			nonce: '<?php echo wp_create_nonce('meta_description_boy_nonce'); ?>'
+		}, function(response) {
+			var result = JSON.parse(response);
+			if (result.success) { alert('Security Headers marked as resolved.'); location.reload(); }
+			else { alert('Error: ' + result.message); }
+		}).fail(function() { alert('Error processing request. Please try again.'); });
+	}
+
+	function resetSecurityHeadersApproval() {
+		if (!confirm('Are you sure you want to reset the Security Headers resolution? This will remove the current confirmation.')) return;
+		jQuery.post(ajaxurl, {
+			action: 'website_optimiser_reset_security_headers_approval',
+			nonce: '<?php echo wp_create_nonce('meta_description_boy_nonce'); ?>'
+		}, function(response) {
+			var result = JSON.parse(response);
+			if (result.success) { alert('Security Headers resolution reset.'); location.reload(); }
+			else { alert('Error: ' + result.message); }
+		}).fail(function() { alert('Error processing request. Please try again.'); });
+	}
+	</script>
 	<?php
 }
