@@ -98,6 +98,7 @@ function website_optimiser_abilities_load_full_dependencies() {
 		'media-videos.php',
 		'hover-states-animations.php',
 		'cloudways-cron-optimizer.php',
+		'cloudflare-proxy.php',
 	);
 
 	foreach ( $files as $file ) {
@@ -376,6 +377,7 @@ function website_optimiser_abilities_get_check_callbacks() {
 		'media_videos'                  => 'meta_description_boy_check_media_videos_status',
 		'hover_states_animations'       => 'meta_description_boy_check_hover_states_animations_status',
 		'cloudways_cron_optimizer'      => 'meta_description_boy_check_cloudways_cron_optimizer_status',
+		'cloudflare_proxy'              => 'website_optimiser_check_cloudflare_proxy_status',
 	);
 
 	if ( class_exists( 'WooCommerce' ) ) {
