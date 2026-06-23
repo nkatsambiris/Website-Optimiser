@@ -25,6 +25,7 @@ function meta_description_boy_load_section_includes() {
 
     $dir = plugin_dir_path(__FILE__) . 'includes/';
     require_once $dir . 'robots-txt.php';
+    require_once $dir . 'search-engine-visibility.php';
     require_once $dir . 'llms-txt.php';
     require_once $dir . 'xml-sitemap.php';
     require_once $dir . 'google-search-console-sitemap.php';
@@ -34,6 +35,7 @@ function meta_description_boy_load_section_includes() {
     require_once $dir . 'wordfence-security.php';
     require_once $dir . 'gravity-forms-recaptcha.php';
     require_once $dir . 'gravity-forms-notifications.php';
+    require_once $dir . 'smtp-email.php';
     require_once $dir . 'gravity-forms-confirmations.php';
     require_once $dir . 'gravity-forms-conversion-events.php';
     require_once $dir . 'redirects.php';
@@ -195,6 +197,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_h1_headings_section();
         meta_description_boy_render_featured_images_section();
         meta_description_boy_render_robots_txt_section();
+        website_optimiser_render_search_engine_visibility_section();
         meta_description_boy_render_llms_txt_section();
         meta_description_boy_render_xml_sitemap_section();
         meta_description_boy_render_google_search_console_sitemap_section();
@@ -204,6 +207,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_wordfence_section();
         meta_description_boy_render_gravity_forms_recaptcha_section();
         meta_description_boy_render_gravity_forms_notifications_section();
+        website_optimiser_render_smtp_email_section();
         meta_description_boy_render_gravity_forms_confirmations_section();
         meta_description_boy_render_gravity_forms_conversion_events_section();
         meta_description_boy_render_redirects_section();
@@ -301,6 +305,9 @@ function meta_description_boy_get_seo_summary() {
     if (function_exists('meta_description_boy_check_robots_txt')) {
         $statuses[] = meta_description_boy_check_robots_txt();
     }
+    if (function_exists('website_optimiser_check_search_engine_visibility_status')) {
+        $statuses[] = website_optimiser_check_search_engine_visibility_status();
+    }
     if (function_exists('meta_description_boy_check_llms_txt')) {
         $statuses[] = meta_description_boy_check_llms_txt();
     }
@@ -327,6 +334,9 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('meta_description_boy_check_gravity_forms_notifications_status')) {
         $statuses[] = meta_description_boy_check_gravity_forms_notifications_status();
+    }
+    if (function_exists('website_optimiser_check_smtp_email_status')) {
+        $statuses[] = website_optimiser_check_smtp_email_status();
     }
     if (function_exists('meta_description_boy_check_gravity_forms_confirmations_status')) {
         $statuses[] = meta_description_boy_check_gravity_forms_confirmations_status();

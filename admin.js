@@ -1583,12 +1583,16 @@ jQuery(document).ready(function($) {
                     }
                 });
 
-                if ($action.find('input, textarea, select').length) {
+                var $confirmationFields = $action.find('input, textarea, select').filter(function() {
+                    return !$(this).closest('.stat-inline-form').length;
+                });
+
+                if ($confirmationFields.length) {
                     var modalSourceId = 'seo-stat-form-source-' + index;
                     var $modalSource = $('<div class="stat-form-modal-source" hidden></div>').attr('id', modalSourceId);
                     var $formBlocks = $();
 
-                    $action.find('input, textarea, select').each(function() {
+                    $confirmationFields.each(function() {
                         var $block = $(this).parentsUntil($action, 'div').last();
 
                         if (!$block.length) {

@@ -664,6 +664,23 @@ body.compact-mode .compact-toggle-btn .dashicons-list-view:before {
     text-align: left;
 }
 
+#meta-description-boy-optimisation-page .stat-inline-form {
+    margin: 8px 0 0 40px;
+    max-width: calc(100% - 40px);
+}
+
+#meta-description-boy-optimisation-page .stat-inline-form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+#meta-description-boy-optimisation-page .stat-inline-form-input {
+    max-width: 320px;
+    width: 100%;
+}
+
 #meta-description-boy-optimisation-page .stat-action .button,
 #meta-description-boy-optimisation-page .stat-details-toggle,
 #meta-description-boy-optimisation-page .stat-actions-menu-toggle,

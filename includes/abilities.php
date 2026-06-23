@@ -61,6 +61,7 @@ function website_optimiser_abilities_load_full_dependencies() {
 	$dir = plugin_dir_path( dirname( __FILE__ ) ) . 'includes/';
 	$files = array(
 		'robots-txt.php',
+		'search-engine-visibility.php',
 		'llms-txt.php',
 		'xml-sitemap.php',
 		'google-search-console-sitemap.php',
@@ -70,6 +71,7 @@ function website_optimiser_abilities_load_full_dependencies() {
 		'wordfence-security.php',
 		'gravity-forms-recaptcha.php',
 		'gravity-forms-notifications.php',
+		'smtp-email.php',
 		'gravity-forms-confirmations.php',
 		'gravity-forms-conversion-events.php',
 		'redirects.php',
@@ -349,6 +351,7 @@ function website_optimiser_abilities_get_check_callbacks() {
 
 	$checks = array(
 		'robots_txt'                    => 'meta_description_boy_check_robots_txt',
+		'search_engine_visibility'      => 'website_optimiser_check_search_engine_visibility_status',
 		'llms_txt'                      => 'meta_description_boy_check_llms_txt',
 		'xml_sitemap'                   => 'meta_description_boy_check_sitemap',
 		'google_search_console_sitemap' => 'meta_description_boy_check_google_search_console_sitemap_status',
@@ -358,6 +361,7 @@ function website_optimiser_abilities_get_check_callbacks() {
 		'wordfence'                     => 'meta_description_boy_check_wordfence_status',
 		'gravity_forms_recaptcha'       => 'meta_description_boy_check_gravity_forms_recaptcha_status',
 		'gravity_forms_notifications'   => 'meta_description_boy_check_gravity_forms_notifications_status',
+		'smtp_email'                    => 'website_optimiser_check_smtp_email_status',
 		'gravity_forms_confirmations'   => 'meta_description_boy_check_gravity_forms_confirmations_status',
 		'gravity_forms_conversion_events' => 'meta_description_boy_check_gravity_forms_conversion_events_status',
 		'redirects'                     => 'meta_description_boy_check_redirects_status',
