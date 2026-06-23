@@ -494,20 +494,17 @@ function website_optimiser_render_security_headers_section() {
 				<?php if ( ! is_ssl() && ! empty( $status['enabled'] ) ) : ?>
 					<br><br><small><em><?php esc_html_e( 'HSTS is only sent over HTTPS.', 'website-optimiser' ); ?></em></small>
 				<?php endif; ?>
+				<?php if ( $sh_resolved ) : ?>
+					<br><br><small><strong>Resolved by:</strong> <?php echo esc_html( $sh_resolved_by ); ?></small>
+					<br><small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $sh_resolved_date ) ) ); ?></small>
+				<?php endif; ?>
 			</div>
 			<div class="stat-action">
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=website-optimiser-security-headers' ) ); ?>" class="button button-small">
 					<?php esc_html_e( 'Configure Headers', 'website-optimiser' ); ?>
 				</a>
-			</div>
-			<div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
 				<?php if ( $sh_resolved ) : ?>
-					<div style="background: #edfaef; padding: 10px; border-radius: 4px; border-left: 4px solid #46b450;">
-						<strong>✓ Manually Marked as Resolved</strong><br>
-						<small><strong>Resolved by:</strong> <?php echo esc_html( $sh_resolved_by ); ?></small><br>
-						<small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $sh_resolved_date ) ) ); ?></small>
-					</div>
-					<button type="button" class="button button-small" style="margin-top: 8px;" onclick="resetSecurityHeadersApproval()">
+					<button type="button" class="button button-small" onclick="resetSecurityHeadersApproval()">
 						Reset Resolution
 					</button>
 				<?php else : ?>

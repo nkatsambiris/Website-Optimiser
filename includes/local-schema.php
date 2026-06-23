@@ -818,20 +818,17 @@ function website_optimiser_render_local_schema_section() {
 				<?php if ( ! empty( $status['schema_type'] ) ) : ?>
 					<br><small><strong><?php esc_html_e( 'Type:', 'website-optimiser' ); ?></strong> <?php echo esc_html( $status['schema_type'] ); ?></small>
 				<?php endif; ?>
+				<?php if ( $ls_resolved ) : ?>
+					<br><br><small><strong>Resolved by:</strong> <?php echo esc_html( $ls_resolved_by ); ?></small>
+					<br><small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $ls_resolved_date ) ) ); ?></small>
+				<?php endif; ?>
 			</div>
 			<div class="stat-action">
 				<a href="<?php echo esc_url( $settings_url ); ?>" class="button button-small">
 					<?php esc_html_e( 'Configure Schema', 'website-optimiser' ); ?>
 				</a>
-			</div>
-			<div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
 				<?php if ( $ls_resolved ) : ?>
-					<div style="background: #edfaef; padding: 10px; border-radius: 4px; border-left: 4px solid #46b450;">
-						<strong>✓ Manually Marked as Resolved</strong><br>
-						<small><strong>Resolved by:</strong> <?php echo esc_html( $ls_resolved_by ); ?></small><br>
-						<small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $ls_resolved_date ) ) ); ?></small>
-					</div>
-					<button type="button" class="button button-small" style="margin-top: 8px;" onclick="resetLocalSchemaApproval()">
+					<button type="button" class="button button-small" onclick="resetLocalSchemaApproval()">
 						Reset Resolution
 					</button>
 				<?php else : ?>

@@ -252,6 +252,9 @@ function website_optimiser_render_pagespeed_insights_section() {
     $status  = website_optimiser_check_pagespeed_insights_status();
     $results = $status['results'];
     $api_key = website_optimiser_get_pagespeed_api_key();
+    $psi_resolved      = get_option( 'website_optimiser_pagespeed_resolved', false );
+    $psi_resolved_by   = get_option( 'website_optimiser_pagespeed_resolved_by', '' );
+    $psi_resolved_date = get_option( 'website_optimiser_pagespeed_resolved_date', '' );
     ?>
     <div class="seo-stat-item <?php echo esc_attr( $status['class'] ); ?>">
         <div class="stat-icon">PSI</div>
@@ -281,6 +284,11 @@ function website_optimiser_render_pagespeed_insights_section() {
                     }
                     ?>
                 <?php endif; ?>
+
+                <?php if ( $psi_resolved ) : ?>
+                    <br><br><small><strong>Resolved by:</strong> <?php echo esc_html( $psi_resolved_by ); ?></small>
+                    <br><small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $psi_resolved_date ) ) ); ?></small>
+                <?php endif; ?>
             </div>
             <div class="stat-action">
                 <button type="button" class="button button-primary button-small" id="website-optimiser-run-pagespeed">
@@ -290,20 +298,8 @@ function website_optimiser_render_pagespeed_insights_section() {
                     Open PageSpeed
                 </a>
                 <div id="website-optimiser-pagespeed-status" style="display: none; margin-top: 8px;"></div>
-            </div>
-            <?php
-            $psi_resolved    = get_option( 'website_optimiser_pagespeed_resolved', false );
-            $psi_resolved_by = get_option( 'website_optimiser_pagespeed_resolved_by', '' );
-            $psi_resolved_date = get_option( 'website_optimiser_pagespeed_resolved_date', '' );
-            ?>
-            <div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
                 <?php if ( $psi_resolved ) : ?>
-                    <div style="background: #edfaef; padding: 10px; border-radius: 4px; border-left: 4px solid #46b450;">
-                        <strong>✓ Manually Marked as Resolved</strong><br>
-                        <small><strong>Resolved by:</strong> <?php echo esc_html( $psi_resolved_by ); ?></small><br>
-                        <small><strong>Date:</strong> <?php echo esc_html( date( 'M j, Y g:i A', strtotime( $psi_resolved_date ) ) ); ?></small>
-                    </div>
-                    <button type="button" class="button button-small" style="margin-top: 8px;" onclick="resetPagespeedApproval()">
+                    <button type="button" class="button button-small" onclick="resetPagespeedApproval()">
                         Reset Resolution
                     </button>
                 <?php else : ?>
