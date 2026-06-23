@@ -63,6 +63,7 @@ function meta_description_boy_load_section_includes() {
     require_once $dir . 'hover-states-animations.php';
     require_once $dir . 'cloudways-cron-optimizer.php';
     require_once $dir . 'cloudflare-proxy.php';
+    require_once $dir . 'ssl-check.php';
 }
 
 if (wp_doing_ajax()) {
@@ -226,6 +227,7 @@ function meta_description_boy_optimisation_page() {
         meta_description_boy_render_hover_animations_section();
         meta_description_boy_render_cloudways_cron_optimizer_section();
         website_optimiser_render_cloudflare_proxy_section();
+        website_optimiser_render_ssl_check_section();
 
         // Conditionally render WooCommerce sections if WooCommerce is active
         if (class_exists('WooCommerce')) {
@@ -394,6 +396,9 @@ function meta_description_boy_get_seo_summary() {
     }
     if (function_exists('website_optimiser_check_cloudflare_proxy_status')) {
         $statuses[] = website_optimiser_check_cloudflare_proxy_status();
+    }
+    if (function_exists('website_optimiser_check_ssl_status')) {
+        $statuses[] = website_optimiser_check_ssl_status();
     }
 
     // Conditionally check WooCommerce statuses if WooCommerce is active
