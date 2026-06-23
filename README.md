@@ -58,6 +58,10 @@ REST (authenticated): `GET /wp-json/wp-abilities/v1/abilities` and `POST /wp-jso
 3. Enter your API key and configure your settings
 4. Start generating meta descriptions!
 
+## Version 3.0.2 Changes
+- NEW: SMTP module
+- NEW: SSL module
+
 ## Version 3.0.1 Changes
 - FIX: Optionally mark certain modules as resolved
 - FIX: Exclude svg from image alt generations
